@@ -2162,8 +2162,8 @@ function bmOverview(me) {
   const desc = isPro
     ? '<p>您是<b>专业分站</b>：可在「我的下级」设置下级价格、分享邀请链接，别人通过你的链接开通分站后，费用直接进入你的账户余额。</p>'
     : '<p>您是<b>普通分站</b>：无下级管理权限，可升级为专业分站后开通下级、获得分销收益。</p>';
-  const up = !isPro && me.upgradePrice > 0 ? `<div style="margin-top:14px;padding:14px;border:1px solid #FDE68A;background:#FFFBEB;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-      <div style="font-size:13px;color:#92400E">升级为专业分站：补差价 <b style="color:#FF6A00;font-size:15px">¥${fmtPrice(me.upgradePrice)}</b>（从账户余额扣除）</div>
+  const up = !isPro ? `<div style="margin-top:14px;padding:14px;border:1px solid #FDE68A;background:#FFFBEB;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div style="font-size:13px;color:#92400E">升级为专业分站：${me.upgradePrice > 0 ? `补差价 <b style="color:#FF6A00;font-size:15px">¥${fmtPrice(me.upgradePrice)}</b>（从账户余额扣除）` : '<b style="color:#FF6A00;font-size:15px">免费升级</b>'}</div>
       <button class="btn btn-primary btn-sm" data-upgrade>${icon('branch', 14)} 立即升级</button></div>` : '';
   return `${stat}
     <div class="form-card" style="margin-top:12px"><div style="font-size:13px;line-height:1.9;color:#555">${desc}</div>${up}</div>
@@ -3057,6 +3057,17 @@ async function vPoints() {
         <div class="pa-num">${logs.balance}</div>
         <div class="pa-label mt-8" data-goto="#/vip">${icon('vip', 14)} 查看会员等级</div>
       </div>
+      <div class="section">
+        <div class="section-title"><span>积分兑换余额</span></div>
+        <div class="form-card" style="padding:14px">
+          <div class="text-xs text-3" style="margin-bottom:8px">兑换比例：${(App.site && App.site.pointsExchangeRate) || 100} 积分 = 1元（积分需为100的整数倍）</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="input" id="pts-exchange" type="number" min="100" step="100" placeholder="输入积分数量（100的整数倍）" style="flex:1">
+            <button class="btn btn-primary" id="pts-exchange-btn">兑换余额</button>
+          </div>
+          <div class="text-xs text-3" style="margin-top:6px" id="pts-exchange-preview">可兑换 ¥0.00</div>
+        </div>
+      </div>
       ${exchange.length ? `
         <div class="section">
           <div class="section-title"><span>积分兑换</span></div>
@@ -3083,6 +3094,27 @@ async function vPoints() {
       const root = $('#view');
       bindBack(root);
       bindGoto(root);
+      const rate = (App.site && App.site.pointsExchangeRate) || 100;
+      const input = $('#pts-exchange', root);
+      const preview = $('#pts-exchange-preview', root);
+      if (input && preview) {
+        input.addEventListener('input', () => {
+          const pts = parseInt(input.value) || 0;
+          preview.textContent = '可兑换 ¥' + fmtPrice(Math.round((pts / rate) * 100) / 100);
+        });
+      }
+      const exBtn = $('#pts-exchange-btn', root);
+      if (exBtn) exBtn.addEventListener('click', async () => {
+        const pts = parseInt(input.value);
+        if (!pts || pts <= 0) return toast('请输入积分数量', 'error');
+        if (pts % 100 !== 0) return toast('积分需为100的整数倍', 'error');
+        if (!await confirmDlg('确定用 ' + pts + ' 积分兑换 ¥' + fmtPrice(Math.round((pts / rate) * 100) / 100) + ' 余额吗？')) return;
+        try {
+          const r = await API.post('/user/points/exchange', { points: pts });
+          toast(r.msg || '兑换成功', 'success');
+          location.reload();
+        } catch (e) { toast(e.message, 'error'); }
+      });
       $$('[data-exchange]', root).forEach((el) => el.addEventListener('click', async () => {
         if (!await confirmDlg('确定用积分兑换该优惠券吗？')) return;
         try { await API.post('/user/coupons/claim/' + el.getAttribute('data-exchange')); toast('兑换成功', 'success'); location.reload(); }
@@ -3469,11 +3501,19 @@ async function vSettings() {
 
 async function vSecurity() {
   const me = (await API.get('/auth/me')).user;
+  let codeTimer = null;
   return {
     html: `${navBar('账号安全')}
       <div class="form">
         <div class="form-card">
           <div class="form-item"><span class="form-label">原密码</span><input class="input" id="f-old" type="password" placeholder="输入原密码"></div>
+          <div class="form-item"><span class="form-label">邮箱验证码</span>
+            <div style="display:flex;gap:8px">
+              <input class="input" id="f-code" placeholder="6位验证码" style="flex:1" maxlength="6">
+              <button class="btn btn-outline" id="f-sendcode" style="white-space:nowrap">发送验证码</button>
+            </div>
+            <div class="form-tip" style="margin-top:4px">验证码将发送至 ${esc(me.email || '您的绑定邮箱')}</div>
+          </div>
           <div class="form-item"><span class="form-label">新密码</span><input class="input" id="f-next" type="password" placeholder="至少6位"></div>
           <div class="form-item"><span class="form-label">确认新密码</span><input class="input" id="f-next2" type="password" placeholder="再次输入"></div>
         </div>
@@ -3492,12 +3532,31 @@ async function vSecurity() {
       const btn = $('[data-changepwd]', root);
       if (btn) btn.addEventListener('click', async () => {
         const old = $('#f-old', root).value;
+        const code = $('#f-code', root).value.trim();
         const next = $('#f-next', root).value;
         const next2 = $('#f-next2', root).value;
-        if (!old || next.length < 6) return toast('请填写完整信息', 'error');
+        if (!old) return toast('请输入原密码', 'error');
+        if (!code || code.length !== 6) return toast('请输入6位邮箱验证码', 'error');
+        if (next.length < 6) return toast('新密码至少6位', 'error');
         if (next !== next2) return toast('两次密码不一致', 'error');
-        try { await API.put('/auth/password', { old, next }); toast('修改成功，请重新登录', 'success'); Auth.logout(); location.hash = '#/login'; }
+        try { await API.put('/auth/password', { old, next, code }); toast('修改成功，请重新登录', 'success'); Auth.logout(); location.hash = '#/login'; }
         catch (e) { toast(e.message, 'error'); }
+      });
+      const sendBtn = $('#f-sendcode', root);
+      if (sendBtn) sendBtn.addEventListener('click', async () => {
+        if (sendBtn.disabled) return;
+        try {
+          await API.post('/auth/send-email-code-authed', { purpose: 'change_password' });
+          toast('验证码已发送，请查收邮箱', 'success');
+          let sec = 60;
+          sendBtn.disabled = true;
+          sendBtn.textContent = sec + 's后重发';
+          codeTimer = setInterval(() => {
+            sec--;
+            if (sec <= 0) { clearInterval(codeTimer); sendBtn.disabled = false; sendBtn.textContent = '发送验证码'; }
+            else sendBtn.textContent = sec + 's后重发';
+          }, 1000);
+        } catch (e) { toast(e.message, 'error'); }
       });
       const be = $('[data-bind-email]', root);
       if (be) be.addEventListener('click', () => openBindDialog());
