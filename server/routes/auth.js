@@ -1,4 +1,4 @@
-﻿/**
+/**
  * routes/auth.js - 用户认证相关接口
  * 注册 / 登录 / 第三方登录 / 找回密码 / 绑定手机 / 个人信息
  */
@@ -234,6 +234,32 @@ router.post('/send-email-code', async (req, res) => {
   }
 });
 
+/** 登录后发送邮箱验证码（用于修改密码等，无需图形验证码） */
+router.post('/send-email-code-authed', auth.requireUser, async (req, res) => {
+  const { purpose = 'change_password' } = req.body || {};
+  const em = (req.user.email || '').trim().toLowerCase();
+  if (!em) return res.json(util.fail('请先绑定邮箱'));
+  if (!rateAllow(clientKey(req, 'email-authed|' + em), 1, 60000)) return res.json(util.fail('发送过于频繁，请稍后再试'));
+  const code = issueEmailCode(em, purpose);
+  const siteName = (db.load().settings && db.load().settings.siteName) || '发卡网';
+  const r = await mail.sendMail({
+    to: em,
+    subject: `【${siteName}】验证码 ${code}`,
+    html: `<div style="font-family:Arial,'Microsoft YaHei',sans-serif;max-width:480px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)">
+      <div style="background:#ff7d00;padding:18px 24px;color:#fff;font-size:16px;font-weight:700">${siteName} · 邮箱验证</div>
+      <div style="padding:24px;color:#333;font-size:14px;line-height:1.8">
+        <p>您好：</p>
+        <p>您正在进行${purpose === 'change_password' ? '修改密码' : '身份验证'}操作，验证码为：</p>
+        <div style="font-size:30px;font-weight:bold;color:#ff7d00;letter-spacing:8px;padding:14px;background:#fff7f0;border-radius:8px;text-align:center;margin:16px 0">${code}</div>
+        <p style="color:#999;font-size:12px">验证码 10 分钟内有效，请勿泄露给他人。如非本人操作请忽略。</p>
+      </div>
+    </div>`,
+    text: `您的${siteName}验证码是 ${code}，10分钟内有效。`
+  });
+  if (r.error && util.isProd()) return res.json(util.fail('邮件发送失败：' + r.error));
+  res.json(util.ok({ tip: '验证码已发送至 ' + em + '，请注意查收', ...(util.allowDevCode() ? { devCode: code } : {}) }));
+});
+
 /** 邮箱注册（邮箱+验证码+密码） */
 router.post('/register-email', (req, res) => {
   const { email, code, password, nickname } = req.body || {};
@@ -350,10 +376,13 @@ function refreshLevel(user) {
 
 /** 修改登录密码 */
 router.put('/password', auth.requireUser, (req, res) => {
-  const { old, next } = req.body || {};
-  if (!old || !next) return res.json(util.fail('参数不完整'));
+  const { old, next, code } = req.body || {};
+  if (!old || !next || !code) return res.json(util.fail('参数不完整，请填写原密码、邮箱验证码和新密码'));
   if (next.length < 6) return res.json(util.fail('新密码至少 6 位'));
   if (!util.verifyPassword(old, req.user.passwordHash)) return res.json(util.fail('原密码不正确'));
+  // 验证邮箱验证码
+  if (!req.user.email) return res.json(util.fail('请先绑定邮箱'));
+  if (!verifyEmailCode(req.user.email, code, 'change_password')) return res.json(util.fail('邮箱验证码错误或已过期'));
   req.user.passwordHash = util.hashPassword(next);
   syncBranchPassword(req.user.id, next);
   res.json(util.ok({ msg: '密码修改成功' }));
