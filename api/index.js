@@ -1,12 +1,9 @@
 /**
  * api/index.js - Vercel Serverless 函数入口
- * 把 Express 应用包装成 Vercel 可部署的 handler
- * 优化：先创建app注册路由，db异步初始化，不阻塞简单接口
+ * 优化：极简启动，路由懒加载，db异步初始化
  */
 const express = require('express');
 const path = require('path');
-const db = require('../server/db');
-const seed = require('../server/seed');
 
 let app = null;
 let dbReady = false;
@@ -17,6 +14,8 @@ async function initDb() {
   if (dbInitPromise) return dbInitPromise;
   dbInitPromise = (async () => {
     try {
+      const db = require('../server/db');
+      const seed = require('../server/seed');
       await db.init();
       if (!db.load().settings) {
         const fresh = seed.build();
@@ -26,7 +25,6 @@ async function initDb() {
       console.log('[vercel] 数据库初始化完成');
     } catch (e) {
       console.error('[vercel] 数据库初始化失败:', e.message);
-      // 重置，下次重试
       dbInitPromise = null;
     }
   })();
@@ -35,16 +33,21 @@ async function initDb() {
 
 function createApp() {
   const application = express();
-  application.use(express.json({ limit: '4mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } }));
+  application.use(express.json({ limit: '4mb' }));
   application.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-  // 静态资源
-  application.use(express.static(path.join(__dirname, '..', 'public')));
+  // 禁止API缓存
+  application.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  });
 
   // 验证码接口：不依赖db，直接响应
-  const captcha = require('../server/captcha');
-  const util = require('../server/util');
   application.get('/api/auth/captcha', (req, res) => {
+    const captcha = require('../server/captcha');
+    const util = require('../server/util');
     res.json(util.ok(captcha.getCaptcha()));
   });
 
@@ -53,25 +56,24 @@ function createApp() {
     res.json({ code: 0, data: { status: 'ok', time: new Date().toISOString(), dbReady } });
   });
 
-  // 数据库就绪检查中间件
+  // 数据库就绪检查
   application.use('/api', async (req, res, next) => {
-    // 验证码和健康检查已经处理过了
     if (req.path === '/auth/captcha' || req.path === '/health') return next();
     if (!dbReady) {
       await initDb();
       if (!dbReady) {
-        return res.status(503).json({ code: 1, msg: '系统初始化中，请稍后重试' });
+        return res.status(503).json({ code: 1, msg: '系统初始化中，请刷新页面重试' });
       }
     }
     next();
   });
 
-  // 路由
-  application.use('/api/auth', require('../server/routes/auth'));
-  application.use('/api/shop', require('../server/routes/shop'));
-  application.use('/api/user', require('../server/routes/user'));
-  application.use('/api/admin', require('../server/routes/admin'));
-  application.use('/api/pay', require('../server/routes/pay'));
+  // 路由（懒加载）
+  application.use('/api/auth', (req, res, next) => require('../server/routes/auth')(req, res, next));
+  application.use('/api/shop', (req, res, next) => require('../server/routes/shop')(req, res, next));
+  application.use('/api/user', (req, res, next) => require('../server/routes/user')(req, res, next));
+  application.use('/api/admin', (req, res, next) => require('../server/routes/admin')(req, res, next));
+  application.use('/api/pay', (req, res, next) => require('../server/routes/pay')(req, res, next));
 
   // SPA 前端路由回退
   application.get('*', (req, res) => {
@@ -87,7 +89,7 @@ function createApp() {
   return application;
 }
 
-// 启动时异步初始化数据库（不阻塞冷启动）
+// 启动时异步初始化数据库
 initDb();
 
 module.exports = async (req, res) => {

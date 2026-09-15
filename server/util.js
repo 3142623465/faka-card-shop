@@ -97,6 +97,31 @@ function isProd() {
   return process.env.NODE_ENV === 'production';
 }
 
+/** devCode 直显开关：默认仅开发模式允许；生产模式必须显式设置 ALLOW_DEVCODE=1 才开启（M-6） */
+function allowDevCode() {
+  return process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEVCODE === '1';
+}
+
+/** 后端 HTML 过滤（L-3 纵深防御）：剥离 script/事件属性/javascript: 协议；
+ *  opts.keepTags 为 true 时保留安全白名单标签（strong/b/i/em/u/br/p/span/a），否则全量去标签 */
+function sanitizeHtml(str, opts) {
+  if (str == null) return '';
+  let s = String(str);
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, '')
+       .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+       .replace(/<object[\s\S]*?<\/object>/gi, '')
+       .replace(/<embed[\s\S]*?<\/embed>/gi, '')
+       .replace(/<[^>]*\son\w+\s*=[^>]*>/gi, '')
+       .replace(/(href|src|action)\s*=\s*(['"]?)\s*javascript:[^'">]*/gi, '$1=$2#')
+       .replace(/(href|src|action)\s*=\s*(['"]?)\s*vbscript:[^'">]*/gi, '$1=$2#');
+  if (opts && opts.keepTags) {
+    s = s.replace(/<(?!\/?(?:strong|b|i|em|u|br|p|span|a)(?:\s[^>]*)?>)[^<>]*>/g, '');
+  } else {
+    s = s.replace(/<[^>]*>/g, '');
+  }
+  return s.trim();
+}
+
 /** 分页 */
 function paginate(arr, page, size) {
   page = Math.max(1, parseInt(page) || 1);
@@ -118,8 +143,12 @@ function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-/** 生成卡密 code（按商品格式，crypto.randomBytes 加密安全随机） */
+/** 生成卡密 code（按商品格式，crypto.randomBytes 加密安全随机；_seq 为连续编号模式） */
 function genCardCode(product, idx) {
+  // 连续编号模式：自动生成时传 _seq {prefix, startNo}
+  if (product._seq && product._seq.prefix) {
+    return product._seq.prefix + String(product._seq.startNo + idx);
+  }
   const map = {
     'alnum': 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
     'num': '0123456789'
@@ -183,7 +212,7 @@ function sanitizeQuickNav(list) {
       cls: String((q && q.cls) || 'c1').slice(0, 8),
       img: String((q && q.img) || '').slice(0, 300),
       link: String((q && q.link) || '#/home').slice(0, 200),
-      enabled: !q || q.enabled !== false,
+      enabled: !(q && (q.enabled === false || q.enabled === 0 || q.enabled === '0' || q.enabled === 'false')),
       fixed: false
     };
   });
@@ -193,6 +222,6 @@ function sanitizeQuickNav(list) {
 
 module.exports = {
   ok, fail, hashPassword, verifyPassword, newToken, genCode, genOrderNo,
-  now, isProd, paginate, matchKeyword, clone, genCardCode, genCardSecret, nextId, mask,
+  now, isProd, allowDevCode, sanitizeHtml, paginate, matchKeyword, clone, genCardCode, genCardSecret, nextId, mask,
   defaultQuickNav, sanitizeQuickNav, detectImageType
 };

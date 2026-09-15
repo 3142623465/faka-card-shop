@@ -408,7 +408,7 @@ function bindSendCode(root) {
     const cap = captchaPayload();
     try {
       const r = await API.post('/auth/send-email-code', { email, scene, ...cap });
-      toast(r.devCode ? `邮箱验证码：${r.devCode}（本地演示环境直接显示）` : (r.tip || '验证码已发送，请注意查收'), 'success');
+      toast(r.tip || '验证码已发送至 ' + email + '，5 分钟内有效，请注意查收', 'success');
       resetCaptchaField();
       let sec = 60;
       const t = setInterval(() => {
@@ -433,8 +433,7 @@ function bindEmailCode(root) {
     const cap = captchaPayload();
     try {
       const r = await API.post('/auth/send-email-code', { email, scene, ...cap });
-      if (r.devCode) toast(`邮箱验证码：${r.devCode}（本地演示环境直接显示）`, 'success');
-      else toast(r.tip || '验证码已发送至 ' + email + '，5 分钟内有效，请注意查收', 'success');
+      toast(r.tip || '验证码已发送至 ' + email + '，5 分钟内有效，请注意查收', 'success');
       resetCaptchaField();
       let sec = 60;
       const t = setInterval(() => {
@@ -636,8 +635,7 @@ function vForgot() {
           const r = await API.post('/auth/send-reset-email', { email, ...captchaPayload() });
           const tip = $('#email-tip', root);
           tip.style.display = '';
-          tip.innerHTML = `重置链接已发送至 ${esc(email)}。<br>链接 30 分钟内有效，请及时操作。<br>本地演示环境链接：<a style="color:var(--primary)" data-goto="${esc(r.devLink)}">点击进入重置页</a>`;
-          bindGoto(tip);
+          tip.innerHTML = `重置链接已发送至 ${esc(email)}。<br>链接 30 分钟内有效，请及时查收邮件并点击操作。`;
           toast('已发送', 'success');
           let sec = 60;
           const t = setInterval(() => {
@@ -716,7 +714,7 @@ function openBindDialog() {
     sendBtn.disabled = true;
     try {
       const r = await API.post('/auth/send-email-code', { email: acc, scene: 'bind', captchaToken: capToken, captchaCode: cap });
-      toast(r.devCode ? '邮箱验证码：' + r.devCode + '（本地演示环境直接显示）' : '验证码已发送', 'success');
+      toast(r.tip || '验证码已发送至 ' + acc + '，5 分钟内有效，请注意查收', 'success');
       refreshCap(); q('#bd-cap-' + ts).value = '';
       let sec = 60;
       const t = setInterval(() => {
@@ -780,7 +778,7 @@ async function vHome() {
         <div class="card" style="margin:10px 12px 0">
           <div class="quick-grid">
             ${(() => {
-              const qs = quick.filter((q) => q.enabled !== false && q.name !== '首页');
+              const qs = quick.filter((q) => !(q.enabled === false || q.enabled === 0 || q.enabled === '0' || q.enabled === 'false') && q.name !== '首页');
               const pad = qs.length % 4 === 0 ? 0 : 4 - (qs.length % 4);
               const items = qs.map((q) => {
                 const iconHtml = q.img ? `<img class="quick-img" src="${esc(q.img)}" alt="${esc(q.name)}" onerror="imgFallback(event)">` : `<span class="quick-icon ${q.cls || 'c1'}">${icon(q.icon || 'gift', 22)}</span>`;
@@ -1539,7 +1537,12 @@ async function vPay(params) {
         </div>
         <div class="card" style="padding:16px">
           <div style="font-weight:600;margin-bottom:10px">上传付款截图</div>
-          <input class="input" id="manual-proof" placeholder="粘贴付款截图的图片URL（如上传到图床后的链接）" style="margin-bottom:10px">
+          <div style="display:flex;gap:10px;margin-bottom:10px">
+            <input class="input" id="manual-proof" placeholder="粘贴图片URL，或点击右侧选择图片" style="flex:1;min-width:0">
+            <button class="btn btn-outline" id="manual-pick" style="flex-shrink:0;white-space:nowrap">${icon('image', 16)} 选择图片</button>
+          </div>
+          <input type="file" id="manual-proof-file" accept="image/*" style="display:none">
+          <img id="manual-proof-prev" hidden style="width:100%;max-height:220px;object-fit:contain;border-radius:10px;border:1px solid var(--line);margin-bottom:10px" alt="付款截图预览">
           <button class="btn btn-primary btn-block" id="manual-submit">提交凭证，等待确认</button>
         </div>
         <div class="form-actions" style="padding:16px 0 30px">
@@ -1603,6 +1606,33 @@ async function vPay(params) {
     toast('支付超时，如已付款请刷新订单查看', 'info');
   }
 
+  function bindManualUpload() {
+    const file = $('#manual-proof-file', root);
+    const pick = $('#manual-pick', root);
+    if (!file || !pick || pick.dataset.bound) return;
+    pick.dataset.bound = '1';
+    pick.addEventListener('click', () => file.click());
+    file.addEventListener('change', () => {
+      const f = file.files[0];
+      if (!f) return;
+      if (!/^image\//.test(f.type)) return toast('请选择图片文件', 'error');
+      if (f.size > 3 * 1024 * 1024) return toast('图片不能超过 3MB', 'error');
+      const fr = new FileReader();
+      fr.onload = async () => {
+        try {
+          const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+          const r = await API.post('/user/upload', { data: fr.result.split(',')[1], ext });
+          $('#manual-proof', root).value = r.url;
+          const prev = $('#manual-proof-prev', root);
+          if (prev) { prev.src = r.url; prev.hidden = false; }
+          toast('图片已上传，请提交凭证', 'success');
+        } catch (e) { toast(e.message, 'error'); }
+      };
+      fr.readAsDataURL(f);
+      file.value = '';
+    });
+  }
+
   const root = $('#view');
 
   async function onConfirm(btn) {
@@ -1613,6 +1643,7 @@ async function vPay(params) {
       if (r.payMode === 'manual') {
         root.innerHTML = `${navBar('手动转账')}${manualView()}`;
         bindBack(root);
+        bindManualUpload();
         $('#manual-submit').addEventListener('click', async () => {
           const proof = $('#manual-proof').value.trim();
           if (!proof) return toast('请粘贴付款截图链接', 'error');
@@ -1683,6 +1714,7 @@ async function vPay(params) {
       bindBack(root);
       if (paid) { bindGoto(root); bindCopy(root); return; }
       if (order.status === 'pending_confirm') {
+        bindManualUpload();
         $('#manual-submit').addEventListener('click', async () => {
           const proof = $('#manual-proof').value.trim();
           if (!proof) return toast('请粘贴付款截图链接', 'error');
@@ -2278,14 +2310,17 @@ function bmOrdersBind(root) {
 }
 
 async function bmWithdraw(me) {
-  let logs = [], wds = [];
+  let logs = [], wds = [], pay = { payAccounts: {}, email: '' };
   try { const r = await API.get('/branch/balance-logs', { params: { page: 1, size: 20 } }); logs = r.list || []; } catch (e) {}
   try { wds = await API.get('/branch/withdrawals'); } catch (e) {}
+  try { pay = await API.get('/branch/pay-accounts'); } catch (e) {}
+  const pa = pay.payAccounts || {};
+  const payEmail = pay.email || '';
   const frozen = me.pendingWithdraw || 0;
   const avail = Math.max(0, (me.balance || 0) - frozen);
   const wdRows = wds.map((w) => `<div style="padding:10px 0;border-bottom:1px solid #F3F4F6">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <div style="min-width:0"><div style="font-weight:600;color:#FF6A00">¥${fmtPrice(w.amount)}</div><div class="text-xs text-3">${esc(w.account)} · ${new Date(w.createdAt * 1000).toLocaleDateString('zh-CN')}</div></div>
+      <div style="min-width:0"><div style="font-weight:600;color:#FF6A00">¥${fmtPrice(w.amount)}</div><div class="text-xs text-3">${esc(w.account || '')}${w.qrcode ? `<img src="${esc(w.qrcode)}" style="width:48px;height:48px;object-fit:contain;border:1px solid #eee;border-radius:6px;display:block;margin-top:4px" alt="收款码">` : ''} · ${new Date(w.createdAt * 1000).toLocaleDateString('zh-CN')}</div></div>
       <div style="text-align:right;flex-shrink:0"><span style="font-size:12px">${w.status === 'pending' ? '<span style="color:#D97706">待审核</span>' : w.status === 'approved' ? '<span style="color:#0F6DFF">已通过</span>' : w.status === 'paid' ? '<span style="color:#0E9F6E">已打款</span>' : w.status === 'rejected' ? '<span style="color:#EF4444">已驳回</span>' : '<span style="color:#999">已取消</span>'}</span>${w.status === 'pending' ? `<button class="btn btn-sm btn-outline-danger" data-wd-cancel="${w.id}" style="margin-left:6px">取消</button>` : ''}</div>
     </div>
   </div>`).join('');
@@ -2293,14 +2328,62 @@ async function bmWithdraw(me) {
     <div style="min-width:0"><div class="text-sm">${esc(l.desc)}</div><div class="text-xs text-3">${new Date(l.createdAt * 1000).toLocaleString('zh-CN', { hour12: false })}</div></div>
     <div style="flex-shrink:0"><span style="font-weight:700;${l.change > 0 ? 'color:#0E9F6E' : 'color:#EF4444'}">${l.change > 0 ? '+' : ''}¥${fmtPrice(l.change)}</span><div class="text-xs text-3" style="text-align:right">余额 ¥${fmtPrice(l.balance)}</div></div>
   </div>`).join('');
+  const bindState = (t) => (pa[t] ? '<span style="color:#0E9F6E">已绑定</span>' : '<span style="color:#EF4444">未绑定</span>');
+  const methodCard = (t, label, iconSvg) => `<label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border:1.5px solid #e5e7eb;border-radius:12px;cursor:pointer;background:#fff" data-method="${t}">
+      <input type="radio" name="bm-method" value="${t}" style="display:none">
+      <span style="font-size:22px">${iconSvg}</span>
+      <span style="font-size:13px;font-weight:600">${label}</span>
+      <span class="text-xs" style="font-size:11px">${bindState(t)}</span>
+    </label>`;
+  // 绑定表单（按 tab 切换）
+  const tabForm = (t) => {
+    if (pa[t]) {
+      let info = '';
+      if (t === 'alipay') info = `昵称：${esc(pa[t].nickname)}<br>账号：${esc(pa[t].account)}`;
+      else if (t === 'wechat') info = `昵称：${esc(pa[t].nickname)}<br>收款码：<img src="${esc(pa[t].qrcode)}" style="width:120px;height:120px;object-fit:contain;border:1px solid #eee;border-radius:8px;margin-top:4px;display:block">`;
+      else info = `持卡人：${esc(pa[t].holder)}<br>开户行：${esc(pa[t].bankName)}<br>卡号：${esc(pa[t].account)}`;
+      return `<div style="padding:10px 0;line-height:1.9;font-size:13px;color:#333">${info}<br><span class="text-xs text-3">绑定于 ${new Date((pa[t].updatedAt || 0) * 1000).toLocaleDateString('zh-CN')}</span></div>
+        <button class="btn btn-sm btn-outline-danger" data-pa-unbind="${t}">解绑</button>`;
+    }
+    let fields = '';
+    if (t === 'alipay') fields = `<div class="form-item"><span class="form-label">支付宝昵称</span><input class="input" id="pa-nickname" placeholder="收款人昵称"></div>
+      <div class="form-item"><span class="form-label">支付宝账号</span><input class="input" id="pa-account" placeholder="手机号 / 邮箱 / 账号"></div>`;
+    else if (t === 'wechat') fields = `<div class="form-item"><span class="form-label">微信昵称</span><input class="input" id="pa-nickname" placeholder="收款人昵称"></div>
+      <div class="form-item"><span class="form-label">收款码图片</span><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-sm btn-outline" id="pa-qrcode-btn">选择图片</button><input type="file" accept="image/*" id="pa-qrcode-file" style="display:none">
+        <img id="pa-qrcode-preview" style="width:90px;height:90px;object-fit:contain;border:1px solid #eee;border-radius:8px;display:none">
+      </div><div class="text-xs text-3" style="margin-top:4px">支持 jpg/png/gif/webp，≤3MB</div></div>`;
+    else fields = `<div class="form-item"><span class="form-label">持卡人姓名</span><input class="input" id="pa-holder" placeholder="银行卡持卡人"></div>
+      <div class="form-item"><span class="form-label">完整开户行</span><input class="input" id="pa-bankName" placeholder="如：中国工商银行XX分行XX支行"></div>
+      <div class="form-item"><span class="form-label">银行卡号</span><input class="input" id="pa-bankAccount" type="number" placeholder="12-24位卡号"></div>`;
+    return `${fields}
+      <div class="form-item" style="flex-direction:column;align-items:stretch;gap:4px"><span class="form-label" style="margin-bottom:2px">邮箱验证码（发送至 ${esc(payEmail || '分站账号邮箱')}）</span>
+        <div style="display:flex;gap:8px"><input class="input" id="pa-code" maxlength="6" placeholder="邮箱验证码" autocomplete="off" style="flex:1"><button class="btn btn-primary btn-sm" id="pa-send">获取验证码</button></div>
+        <div class="text-xs text-3" style="margin-top:2px">${payEmail ? '' : '当前分站账号未绑定邮箱，无法发送验证码'}</div>
+      </div>
+      <div class="form-item"><span class="form-label">图形验证码</span><input class="input" id="f-captcha" maxlength="4" placeholder="图形验证码" autocomplete="off" style="flex:1"><img id="captcha-img" class="captcha-img" alt="验证码" title="点击刷新" style="height:38px;border-radius:6px;cursor:pointer;border:1px solid #e5e7eb;background:#f3f5f9"></div>
+      <button class="btn btn-primary btn-block" id="pa-bind" data-bind-type="${t}">${icon('check', 14)} 绑定收款方式</button>`;
+  };
   return `<div class="form-card">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
       <div class="form-card" style="padding:14px;margin:0"><div class="text-xs text-3">账户余额</div><div style="font-size:20px;font-weight:700;color:#7C3AED">¥${fmtPrice(me.balance || 0)}</div></div>
       <div class="form-card" style="padding:14px;margin:0"><div class="text-xs text-3">可提现</div><div style="font-size:20px;font-weight:700;color:#0E9F6E">¥${fmtPrice(avail)}</div></div>
     </div>
     <div class="form-item"><span class="form-label">提现金额（¥，最低 1 元）</span><input class="input" id="bm-wd-amount" type="number" min="1" step="0.01" placeholder="0.00"></div>
-    <div class="form-item"><span class="form-label">收款方式</span><input class="input" id="bm-wd-account" placeholder="支付宝账号 / 银行卡号及开户行"></div>
+    <div style="font-size:12px;color:#888;margin:8px 0 6px">选择收款方式</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      ${methodCard('alipay', '支付宝', icon('wallet', 20))}
+      ${methodCard('wechat', '微信', icon('image', 20))}
+      ${methodCard('bank', '银行卡', icon('ticket', 20))}
+    </div>
     <div class="form-actions"><button class="btn btn-primary btn-block" id="bm-wd-apply">${icon('wallet', 15)} 提交提现申请</button></div>
+  </div>
+  <div class="form-card" style="margin-top:12px">
+    <div style="font-weight:600;margin-bottom:6px">${icon('setting', 15)} 收款方式绑定（需邮箱验证码验证）</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      ${['alipay', 'wechat', 'bank'].map((t) => `<button class="btn btn-sm ${t === 'alipay' ? 'btn-primary' : 'btn-outline'}" data-pa-tab="${t}">${t === 'alipay' ? '支付宝' : t === 'wechat' ? '微信' : '银行卡'}</button>`).join('')}
+    </div>
+    <div data-pa-form>${tabForm('alipay')}</div>
   </div>
   <div class="form-card" style="margin-top:12px">
     <div style="font-weight:600;margin-bottom:6px">${icon('order', 15)} 提现记录（${wds.length}）</div>
@@ -2313,12 +2396,166 @@ async function bmWithdraw(me) {
 }
 
 function bmWithdrawBind(root) {
+  // 收款方式 tab 切换
+  const tabBtn = (t) => root.querySelector('[data-pa-tab="' + t + '"]');
+  const switchTab = (t) => {
+    ['alipay', 'wechat', 'bank'].forEach((x) => {
+      const b = tabBtn(x);
+      if (b) b.className = 'btn btn-sm ' + (x === t ? 'btn-primary' : 'btn-outline');
+    });
+    root.querySelector('[data-pa-form]').innerHTML = tabFormHtml(t);
+    mountPaCaptcha();
+    bindPaActions(t);
+  };
+  // tab 表单 HTML（依赖当前已绑定状态，从 DOM 重新读太重，直接用缓存的初次渲染结果重算）
+  let paCache = { accounts: {}, email: '' };
+  const loadPa = async () => {
+    try { const r = await API.get('/branch/pay-accounts'); paCache = r; } catch (e) {}
+  };
+  const renderForm = (t) => {
+    const pa = paCache.payAccounts || {};
+    if (pa[t]) {
+      let info = '';
+      if (t === 'alipay') info = `昵称：${esc(pa[t].nickname)}<br>账号：${esc(pa[t].account)}`;
+      else if (t === 'wechat') info = `昵称：${esc(pa[t].nickname)}<br>收款码：<img src="${esc(pa[t].qrcode)}" style="width:120px;height:120px;object-fit:contain;border:1px solid #eee;border-radius:8px;margin-top:4px;display:block">`;
+      else info = `持卡人：${esc(pa[t].holder)}<br>开户行：${esc(pa[t].bankName)}<br>卡号：${esc(pa[t].account)}`;
+      return `<div style="padding:10px 0;line-height:1.9;font-size:13px;color:#333">${info}<br><span class="text-xs text-3">绑定于 ${new Date((pa[t].updatedAt || 0) * 1000).toLocaleDateString('zh-CN')}</span></div>
+        <button class="btn btn-sm btn-outline-danger" data-pa-unbind="${t}">解绑</button>`;
+    }
+    let fields = '';
+    if (t === 'alipay') fields = `<div class="form-item"><span class="form-label">支付宝昵称</span><input class="input" id="pa-nickname" placeholder="收款人昵称"></div>
+      <div class="form-item"><span class="form-label">支付宝账号</span><input class="input" id="pa-account" placeholder="手机号 / 邮箱 / 账号"></div>`;
+    else if (t === 'wechat') fields = `<div class="form-item"><span class="form-label">微信昵称</span><input class="input" id="pa-nickname" placeholder="收款人昵称"></div>
+      <div class="form-item"><span class="form-label">收款码图片</span><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-sm btn-outline" id="pa-qrcode-btn">选择图片</button><input type="file" accept="image/*" id="pa-qrcode-file" style="display:none">
+        <img id="pa-qrcode-preview" style="width:90px;height:90px;object-fit:contain;border:1px solid #eee;border-radius:8px;display:none">
+      </div><div class="text-xs text-3" style="margin-top:4px">支持 jpg/png/gif/webp，≤3MB</div></div>`;
+    else fields = `<div class="form-item"><span class="form-label">持卡人姓名</span><input class="input" id="pa-holder" placeholder="银行卡持卡人"></div>
+      <div class="form-item"><span class="form-label">完整开户行</span><input class="input" id="pa-bankName" placeholder="如：中国工商银行XX分行XX支行"></div>
+      <div class="form-item"><span class="form-label">银行卡号</span><input class="input" id="pa-bankAccount" type="number" placeholder="12-24位卡号"></div>`;
+    return `${fields}
+      <div class="form-item" style="flex-direction:column;align-items:stretch;gap:4px"><span class="form-label" style="margin-bottom:2px">邮箱验证码（发送至 ${esc(paCache.email || '分站账号邮箱')}）</span>
+        <div style="display:flex;gap:8px"><input class="input" id="pa-code" maxlength="6" placeholder="邮箱验证码" autocomplete="off" style="flex:1"><button class="btn btn-primary btn-sm" id="pa-send">获取验证码</button></div>
+        <div class="text-xs text-3" style="margin-top:2px">${paCache.email ? '' : '当前分站账号未绑定邮箱，无法发送验证码'}</div>
+      </div>
+      <div class="form-item"><span class="form-label">图形验证码</span><input class="input" id="f-captcha" maxlength="4" placeholder="图形验证码" autocomplete="off" style="flex:1"><img id="captcha-img" class="captcha-img" alt="验证码" title="点击刷新" style="height:38px;border-radius:6px;cursor:pointer;border:1px solid #e5e7eb;background:#f3f5f9"></div>
+      <button class="btn btn-primary btn-block" id="pa-bind" data-bind-type="${t}">${icon('check', 14)} 绑定收款方式</button>`;
+  };
+  const tabFormHtml = (t) => renderForm(t);
+  const mountPaCaptcha = () => {
+    const img = root.querySelector('#captcha-img');
+    if (img) refreshCaptcha(img);
+  };
+  let qrcodeUrl = '';
+  const bindPaActions = (t) => {
+    const sendBtn = root.querySelector('#pa-send');
+    if (sendBtn) {
+      sendBtn.addEventListener('click', async () => {
+        const email = paCache.email;
+        if (!email) return toast('当前分站账号未绑定邮箱，无法发送验证码', 'error');
+        if (!captchaNeeded()) return;
+        const cap = captchaPayload();
+        sendBtn.disabled = true;
+        try {
+          const r = await API.post('/auth/send-email-code', { email, scene: 'pay', ...cap });
+          toast(r.tip || '验证码已发送至 ' + email, 'success');
+          resetCaptchaField();
+          let sec = 60;
+          const timer = setInterval(() => {
+            sec--;
+            sendBtn.textContent = sec + 's 后重发';
+            if (sec <= 0) { clearInterval(timer); sendBtn.textContent = '获取验证码'; sendBtn.disabled = false; }
+          }, 1000);
+        } catch (e) { toast(e.message, 'error'); sendBtn.disabled = false; resetCaptchaField(); }
+      });
+    }
+    const qb = root.querySelector('#pa-qrcode-btn');
+    const qf = root.querySelector('#pa-qrcode-file');
+    if (qb && qf) {
+      qb.addEventListener('click', () => qf.click());
+      qf.addEventListener('change', async () => {
+        const f = qf.files[0];
+        if (!f) return;
+        if (f.size > 3 * 1024 * 1024) return toast('图片不能超过 3MB', 'error');
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const data = String(reader.result).split(',')[1];
+            const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+            const r = await API.post('/branch/upload', { data, ext });
+            qrcodeUrl = r.url;
+            const prev = root.querySelector('#pa-qrcode-preview');
+            if (prev) { prev.src = r.url; prev.style.display = 'block'; }
+            toast('收款码已上传', 'success');
+          } catch (e) { toast(e.message, 'error'); }
+        };
+        reader.readAsDataURL(f);
+      });
+    }
+    const bindBtn = root.querySelector('#pa-bind');
+    if (bindBtn) {
+      bindBtn.addEventListener('click', async () => {
+        const body = { type: t, email: paCache.email, emailCode: (root.querySelector('#pa-code') || {}).value || '' };
+        if (!body.emailCode) return toast('请输入邮箱验证码', 'error');
+        const val = (id) => (root.querySelector(id) || {}).value || '';
+        if (t === 'alipay') { body.nickname = val('#pa-nickname').trim(); body.account = val('#pa-account').trim(); }
+        else if (t === 'wechat') { body.nickname = val('#pa-nickname').trim(); if (!qrcodeUrl) return toast('请先上传微信收款码图片', 'error'); body.qrcode = qrcodeUrl; }
+        else { body.holder = val('#pa-holder').trim(); body.bankName = val('#pa-bankName').trim(); body.account = val('#pa-bankAccount').trim(); }
+        try {
+          await API.post('/branch/pay-accounts', body);
+          toast('收款方式已绑定', 'success');
+          await loadPa();
+          root.querySelector('[data-pa-form]').innerHTML = renderForm(t);
+          mountPaCaptcha();
+          bindPaActions(t);
+          render();
+        } catch (e) { toast(e.message, 'error'); }
+      });
+    }
+    const unbindBtn = root.querySelector('[data-pa-unbind]');
+    if (unbindBtn) {
+      unbindBtn.addEventListener('click', async () => {
+        const ty = unbindBtn.getAttribute('data-pa-unbind');
+        if (!confirm('确定解绑该收款方式？')) return;
+        try {
+          await API.del('/branch/pay-accounts/' + ty);
+          toast('已解绑', 'success');
+          await loadPa();
+          root.querySelector('[data-pa-form]').innerHTML = renderForm(ty);
+          mountPaCaptcha();
+          bindPaActions(ty);
+          render();
+        } catch (e) { toast(e.message, 'error'); }
+      });
+    }
+  };
+  loadPa().then(() => {
+    const form = root.querySelector('[data-pa-form]');
+    if (form) form.innerHTML = renderForm('alipay');
+    mountPaCaptcha();
+    bindPaActions('alipay');
+  });
+  ['alipay', 'wechat', 'bank'].forEach((t) => {
+    const b = tabBtn(t);
+    if (b) b.addEventListener('click', () => switchTab(t));
+  });
+  // 提现方式卡片选择高亮
+  $$('[data-method]', root).forEach((c) => {
+    c.addEventListener('click', () => {
+      $$('[data-method]', root).forEach((x) => { x.style.borderColor = '#e5e7eb'; x.style.background = '#fff'; });
+      c.style.borderColor = '#7C3AED'; c.style.background = '#F6F2FF';
+      const r = c.querySelector('input[type=radio]');
+      if (r) r.checked = true;
+    });
+  });
   $('#bm-wd-apply', root).addEventListener('click', async () => {
     const amount = Number($('#bm-wd-amount', root).value);
-    const account = $('#bm-wd-account', root).value.trim();
+    const methodEl = root.querySelector('input[name=bm-method]:checked');
+    const method = methodEl ? methodEl.value : '';
     if (!isFinite(amount) || amount <= 0) return toast('请输入正确的提现金额', 'error');
-    if (account.length < 4) return toast('请填写收款方式', 'error');
-    try { await API.post('/branch/withdrawals', { amount, account }); toast('提现申请已提交', 'success'); render(); } catch (e) { toast(e.message, 'error'); }
+    if (!method) return toast('请选择收款方式', 'error');
+    if (!(paCache.payAccounts || {})[method]) return toast('该收款方式尚未绑定，请先到下方「收款方式绑定」完成绑定', 'error');
+    try { await API.post('/branch/withdrawals', { amount, method }); toast('提现申请已提交', 'success'); render(); } catch (e) { toast(e.message, 'error'); }
   });
   $$('[data-wd-cancel]', root).forEach((b) => b.addEventListener('click', async () => {
     const id = Number(b.getAttribute('data-wd-cancel'));
@@ -2656,6 +2893,60 @@ async function vFavorites() {
 /* ============================================================
    地址
    ============================================================ */
+/* ============================================================
+   省市区选择器（底部弹层，三级滚动点选）
+   ============================================================ */
+function regionPicker(initRegion, onPick) {
+  const R = window.REGION_DATA || [];
+  const sel = { prov: '', city: '', dist: '' };
+  if (initRegion) {
+    const parts = String(initRegion).split(/[\s\u3000]+/).filter(Boolean);
+    const prov = R.find((p) => p.name === parts[0]);
+    if (prov) {
+      sel.prov = prov.name;
+      if (parts[1]) {
+        const city = prov.children.find((c) => c.name === parts[1]);
+        if (city) { sel.city = city.name; if (parts[2]) sel.dist = parts[2]; }
+      }
+    }
+  }
+  const ui = openSheet(`<div class="sheet-title">选择所在地区</div><button class="sheet-close">${icon('close', 18)}</button><div class="region-picker"></div>`);
+  const box = ui.el.querySelector('.region-picker');
+  const renderList = () => {
+    let items = [], lvl = 0;
+    if (!sel.prov) lvl = 0;
+    else if (!sel.city) lvl = 1;
+    else lvl = 2;
+    if (lvl === 0) items = R.map((p) => p.name);
+    else if (lvl === 1) { const p = R.find((x) => x.name === sel.prov); items = (p.children || []).map((c) => c.name); }
+    else { const p = R.find((x) => x.name === sel.prov); const c = (p.children || []).find((x) => x.name === sel.city); items = (c && c.children) ? c.children.slice() : []; }
+    box.innerHTML = `
+      <div class="region-tabs">
+        <span class="rtab ${sel.prov ? 'done' : 'on'}" data-lvl="0">${esc(sel.prov || '请选择省')}</span>
+        <span class="rtab ${sel.prov ? (sel.city ? 'done' : 'on') : 'disabled'}" data-lvl="1">${esc(sel.city || '请选择市')}</span>
+        <span class="rtab ${sel.city ? (sel.dist ? 'done' : 'on') : 'disabled'}" data-lvl="2">${esc(sel.dist || '请选择区')}</span>
+      </div>
+      <div class="region-list">${items.map((n) => `<div class="region-item ${((lvl === 0 && n === sel.prov) || (lvl === 1 && n === sel.city) || (lvl === 2 && n === sel.dist)) ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}${((lvl === 0 && n === sel.prov) || (lvl === 1 && n === sel.city) || (lvl === 2 && n === sel.dist)) ? icon('check', 16) : ''}</div>`).join('')}</div>`;
+    if (lvl === 1 && items.length === 1 && items[0] === '市辖区') { sel.city = '市辖区'; renderList(); return; }
+    box.querySelectorAll('.rtab:not(.disabled)').forEach((t) => t.addEventListener('click', () => {
+      const l = Number(t.getAttribute('data-lvl'));
+      if (l === 0) { sel.city = ''; sel.dist = ''; }
+      if (l === 1) { sel.dist = ''; }
+      renderList();
+    }));
+    box.querySelectorAll('.region-item').forEach((it) => it.addEventListener('click', () => {
+      const n = it.getAttribute('data-n');
+      if (lvl === 0) { sel.prov = n; sel.city = ''; sel.dist = ''; }
+      else if (lvl === 1) { sel.city = n; sel.dist = ''; }
+      else { sel.dist = n; }
+      if (lvl < 2) { renderList(); return; }
+      ui.close();
+      onPick(sel.prov + ' ' + sel.city + ' ' + sel.dist);
+    }));
+  };
+  renderList();
+}
+
 async function vAddresses() {
   const list = await API.get('/user/addresses');
   return {
@@ -2704,7 +2995,7 @@ async function vAddressEdit(params) {
         <div class="form-card">
           <div class="form-item"><span class="form-label">收货人</span><input class="input" id="f-name" value="${esc(addr ? addr.name : '')}" maxlength="20" placeholder="姓名"></div>
           <div class="form-item"><span class="form-label">手机号</span><input class="input" id="f-phone" maxlength="11" inputmode="numeric" value="${esc(addr ? addr.phone : '')}" placeholder="手机号"></div>
-          <div class="form-item"><span class="form-label">所在地区</span><input class="input" id="f-region" value="${esc(addr ? addr.region : '')}" placeholder="省 市 区"></div>
+          <div class="form-item"><span class="form-label">所在地区</span><input class="input" id="f-region" readonly value="${esc(addr ? addr.region : '')}" placeholder="点击选择 省 市 区" style="background:var(--bg);cursor:pointer"></div>
           <div class="form-item"><span class="form-label">详细地址</span><input class="input" id="f-detail" value="${esc(addr ? addr.detail : '')}" placeholder="街道、门牌号等"></div>
           <div class="form-item"><span class="form-label">设为默认</span><div class="checkbox round-s ${addr && addr.isDefault ? 'checked' : ''}" id="f-default">${icon('check', 12)}</div></div>
         </div>
@@ -2715,6 +3006,8 @@ async function vAddressEdit(params) {
       bindBack(root);
       const defBox = $('#f-default', root);
       defBox.addEventListener('click', () => defBox.classList.toggle('checked'));
+      const regionBox = $('#f-region', root);
+      regionBox.addEventListener('click', () => regionPicker(regionBox.value, (v) => { regionBox.value = v; }));
       $('[data-save]', root).addEventListener('click', async () => {
         const name = $('#f-name', root).value.trim();
         const phone = $('#f-phone', root).value.trim();
