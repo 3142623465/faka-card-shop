@@ -1,4 +1,4 @@
-﻿/**
+/**
  * app.js - 发卡网用户端（SPA）
  * 页面路由：#/home #/login #/category #/product/1 #/cart #/checkout ... 
  * 视图约定：每个视图返回 { html, mount }，mount 在注入后执行事件绑定。
@@ -778,7 +778,7 @@ async function vHome() {
         <div class="card" style="margin:10px 12px 0">
           <div class="quick-grid">
             ${(() => {
-              const qs = quick.filter((q) => q.enabled !== false && q.name !== '首页');
+              const qs = quick.filter((q) => !(q.enabled === false || q.enabled === 0 || q.enabled === '0' || q.enabled === 'false') && q.name !== '首页');
               const pad = qs.length % 4 === 0 ? 0 : 4 - (qs.length % 4);
               const items = qs.map((q) => {
                 const iconHtml = q.img ? `<img class="quick-img" src="${esc(q.img)}" alt="${esc(q.name)}" onerror="imgFallback(event)">` : `<span class="quick-icon ${q.cls || 'c1'}">${icon(q.icon || 'gift', 22)}</span>`;
