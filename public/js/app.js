@@ -149,7 +149,11 @@ function bindGoto(root) {
 function bindBack(root) {
   const btn = $('[data-back]', root);
   if (btn) btn.addEventListener('click', () => {
-    location.hash = '#/home';
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      location.hash = '#/home';
+    }
   });
 }
 
@@ -2066,6 +2070,7 @@ async function vUser() {
         <div class="cell-group">
           <div class="cell" data-goto="#/open-branch"><span class="cell-icon" style="color:#7C3AED">${icon('branch', 20)}</span><div class="cell-body cell-title">开通分站</div><div class="cell-value" id="branch-state">成为代理商</div><span class="cell-arrow">${icon('right', 16)}</span></div>
           <div class="cell" data-goto="#/service/chat"><span class="cell-icon">${icon('service', 20)}</span><div class="cell-body cell-title">联系客服</div><span class="cell-arrow">${icon('right', 16)}</span></div>
+          <div class="cell" data-goto="#/security"><span class="cell-icon">${icon('lock', 20)}</span><div class="cell-body cell-title">账号安全</div><div class="cell-value">${esc(me.user.email || '未绑定邮箱')}</div><span class="cell-arrow">${icon('right', 16)}</span></div>
           <div class="cell" data-goto="#/settings"><span class="cell-icon">${icon('setting', 20)}</span><div class="cell-body cell-title">系统设置</div><span class="cell-arrow">${icon('right', 16)}</span></div>
         </div>
       </div>`,
@@ -2095,7 +2100,10 @@ async function vBranchManage(params) {
   const sub = params[0] || 'overview';
   let me = null;
   try { me = await API.get('/branch/me'); } catch (e) {
-    return { html: `${navBar('分站管理')}<div class="empty"><img src="/img/empty.svg" alt=""><div class="empty-text">${esc((e && e.message) || '获取分站信息失败')}</div><div class="text-xs text-3" style="margin-top:6px">开通分站后即可在此管理</div><button class="btn btn-primary" style="margin-top:12px" data-goto="#/open-branch">去开通分站</button></div>` };
+    return {
+      html: `${navBar('分站管理')}<div class="empty"><img src="/img/empty.svg" alt=""><div class="empty-text">${esc((e && e.message) || '获取分站信息失败')}</div><div class="text-xs text-3" style="margin-top:6px">开通分站后即可在此管理</div><button class="btn btn-primary" style="margin-top:12px" data-goto="#/open-branch">去开通分站</button></div>`,
+      mount() { bindBack($('#view')); bindGoto($('#view')); }
+    };
   }
   const isPro = me.type === 'pro';
   const menu = `<div class="cell-group" style="margin-top:0">
