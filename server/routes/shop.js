@@ -8,11 +8,8 @@ const db = require('../db');
 const auth = require('../auth');
 const util = require('../util');
 
-/** 计算商品实际库存：自动发货商品取未使用卡密数量，手动发货取 stock 字段 */
+/** 计算商品实际库存（统一库存池：手动/自动商品都取 stock，auto 商品由卡密导入/发卡/退款时同步 stock） */
 function stockOf(product, d) {
-  if (product.type === 'auto') {
-    return d.cards.filter((c) => c.productId === product.id && c.status === 'unused').length;
-  }
   return product.stock || 0;
 }
 
@@ -161,6 +158,7 @@ router.get('/site', (req, res) => {
     wechatQrcode: s.wechatQrcode || '',
     alipayQrcode: s.alipayQrcode || '',
     payNotice: s.payNotice || '',
+    pointsExchangeRate: s.pointsExchangeRate || 100,
     pendingCancelMinutes: s.pendingCancelMinutes === undefined ? 30 : Number(s.pendingCancelMinutes) || 30
   }));
 });

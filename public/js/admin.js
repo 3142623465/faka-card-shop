@@ -361,21 +361,25 @@ async function aProducts() {
   function productModal(p) {
     const isEdit = !!p;
     const up = imgUploader({ value: p ? p.images : [], max: 5 });
+    const stockText = (p && p.type === 'auto')
+      ? `<div class="af-item" id="pf-stock-wrap"><label>当前库存</label><div class="input" style="background:#F7F8FA;display:flex;align-items:center;justify-content:space-between">${p.stock || 0} 条卡密${isEdit ? `<a href="javascript:;" id="pf-gocards" style="color:var(--primary);font-size:13px">卡密管理</a>` : ''}</div></div>`
+      : `<div class="af-item" id="pf-stock-wrap"><label>库存（手动发货商品）</label><input class="input" id="pf-stock" type="number" min="0" value="${p ? p.stock || 0 : 0}"></div>`;
     const { close, body, mask } = openModal(isEdit ? '编辑商品' : '新增商品', `
       <div class="admin-form-grid">
         <div class="af-item full"><label>商品名称 *</label><input class="input" id="pf-name" value="${esc(p ? p.name : '')}"></div>
         <div class="af-item full"><label>副标题</label><input class="input" id="pf-sub" value="${esc(p ? p.subtitle || '' : '')}"></div>
-        <div class="af-item"><label>所属分类 *</label><select id="pf-cat">${flatCats.filter((c) => c.parentId).map((c) => `<option value="${c.id}" ${p && p.categoryId === c.id ? 'selected' : ''}>${esc(c.parentName + ' / ' + c.name)}</option>`).join('')}</select></div>
+        <div class="af-item"><label>所属分类 *</label><select id="pf-cat"><option value="">请选择分类</option>${flatCats.map((c) => `<option value="${c.id}" ${p && p.categoryId === c.id ? 'selected' : ''}>${esc(c.parentName ? c.parentName + ' / ' + c.name : c.name)}</option>`).join('')}</select></div>
         <div class="af-item"><label>发货类型 *</label><select id="pf-type"><option value="auto" ${!p || p.type === 'auto' ? 'selected' : ''}>自动发货（卡密）</option><option value="manual" ${p && p.type === 'manual' ? 'selected' : ''}>手动发货</option></select></div>
         <div class="af-item"><label>售价（元）*</label><input class="input" id="pf-price" type="number" step="0.01" min="0" value="${p ? p.price : ''}"></div>
         <div class="af-item"><label>划线价（元）</label><input class="input" id="pf-oprice" type="number" step="0.01" min="0" value="${p ? p.originalPrice || '' : ''}"></div>
-        <div class="af-item"><label>库存（手动发货商品）</label><input class="input" id="pf-stock" type="number" value="${p && p.type === 'manual' ? p.stock : 0}"></div>
+        ${stockText}
         <div class="af-item"><label>排序</label><input class="input" id="pf-sort" type="number" value="${p ? p.sort || 0 : 0}"></div>
         <div class="af-item full"><label>商品图片（最多5张）</label>${up.html}</div>
         <div class="af-item full"><label>搜索关键词（逗号分隔）</label><input class="input" id="pf-kw" value="${esc(p ? p.keywords || '' : '')}"></div>
         <div class="af-item full"><label>商品详情</label><textarea class="input" id="pf-detail" rows="4">${esc(p ? p.detail || '' : '')}</textarea></div>
         <div id="auto-config" class="full">
           <div class="admin-form-grid" style="grid-column:1/-1;padding:12px;background:#F7F8FA;border-radius:8px">
+            <div class="af-item full"><label>批量添加卡密（每行一条，库存将自动按行数计入；支持 CODE 或 CODE----SECRET）</label><textarea class="input" id="pf-cards" rows="5" placeholder="WZ1234ABCD5678----sEcRet999&#10;WZ2234ABCD5678"></textarea></div>
             <div class="af-item full"><label>卡密说明（展示给买家）</label><input class="input" id="pf-cardnote" value="${esc(p ? p.cardNote || '' : '')}" placeholder="如：卡密为兑换码，需在官网兑换"></div>
             <div class="af-item"><label>卡密前缀</label><input class="input" id="pf-prefix" value="${esc(p ? p.cardPrefix || '' : '')}"></div>
             <div class="af-item"><label>卡密长度</label><input class="input" id="pf-codelen" type="number" value="${p ? p.cardCodeLen || 16 : 16}"></div>
@@ -387,10 +391,20 @@ async function aProducts() {
         <div class="af-item"><label><span class="checkbox round-s ${!p || p.status === 1 ? 'checked' : ''}" id="pf-status">${icon('check', 12)}</span> 上架销售</label></div>
       </div>`, `<button class="btn btn-plain" data-cancel>取消</button><button class="btn btn-primary" data-save>保存</button>`);
     $('[data-cancel]', mask).addEventListener('click', close);
-    $('#pf-type', mask).addEventListener('change', () => {
-      $('#auto-config', body).style.display = $('#pf-type', body).value === 'auto' ? '' : 'none';
-    });
-    $('#auto-config', body).style.display = (!p || p.type === 'auto') ? '' : 'none';
+    $('#pf-gocards', mask)?.addEventListener('click', () => { close(); cardsModal(p); });
+    const refreshTypeUi = () => {
+      const t = $('#pf-type', body).value;
+      $('#auto-config', body).style.display = t === 'auto' ? '' : 'none';
+      const wrap = $('#pf-stock-wrap', body);
+      if (wrap && t === 'auto') {
+        wrap.innerHTML = `<label>当前库存</label><div class="input" style="background:#F7F8FA;display:flex;align-items:center;justify-content:space-between">${p ? (p.stock || 0) : 0} 条卡密（下方粘贴卡密自动入库）${isEdit ? `<a href="javascript:;" id="pf-gocards" style="color:var(--primary);font-size:13px">卡密管理</a>` : ''}</div>`;
+        $('#pf-gocards', body)?.addEventListener('click', () => { close(); cardsModal(p); });
+      } else if (wrap && t === 'manual') {
+        wrap.innerHTML = `<label>库存（手动发货商品）</label><input class="input" id="pf-stock" type="number" min="0" value="${p ? p.stock || 0 : 0}">`;
+      }
+    };
+    $('#pf-type', mask).addEventListener('change', refreshTypeUi);
+    refreshTypeUi();
     $('#pf-hot', mask).addEventListener('click', function () { this.classList.toggle('checked'); });
     $('#pf-status', mask).addEventListener('click', function () { this.classList.toggle('checked'); });
     up.mount();
@@ -401,6 +415,7 @@ async function aProducts() {
       if (!name || isNaN(price)) return toast('请填写商品名称和价格', 'error');
   if (price < 0) return toast('商品价格不能为负数', 'error');
       if (!catId) return toast('请选择分类', 'error');
+      const type = $('#pf-type', body).value;
       const data = {
         categoryId: catId,
         name,
@@ -408,8 +423,8 @@ async function aProducts() {
         price,
         originalPrice: parseFloat($('#pf-oprice', body).value) || 0,
         images: up.getUrls(),
-        type: $('#pf-type', body).value,
-        stock: parseInt($('#pf-stock', body).value) || 0,
+        type,
+        stock: type === 'auto' ? 0 : (parseInt($('#pf-stock', body).value) || 0),
         detail: $('#pf-detail', body).value,
         keywords: $('#pf-kw', body).value.trim(),
         isHot: $('#pf-hot', body).classList.contains('checked'),
@@ -421,9 +436,13 @@ async function aProducts() {
         cardSecretLen: parseInt($('#pf-seclen', body).value) || 8,
         cardCharset: $('#pf-charset', body).value
       };
+      const cardsText = type === 'auto' ? $('#pf-cards', body).value.trim() : '';
+      if (cardsText) data.cardsText = cardsText;
       try {
-        if (isEdit) await API.put('/admin/products/' + p.id, data, { admin: true });
-        else await API.post('/admin/products', data, { admin: true });
+        let res;
+        if (isEdit) res = await API.put('/admin/products/' + p.id, data, { admin: true });
+        else res = await API.post('/admin/products', data, { admin: true });
+        if (res && res.cardsAdd && !res.cardsAdd.ok && res.cardsAdd.msg) toast(res.cardsAdd.msg, 'info');
         toast('已保存', 'success');
         close();
         load();
@@ -433,13 +452,20 @@ async function aProducts() {
 
   function cardsModal(p) {
     let status = 'unused', cpage = 1, cpSize = 15;
+    const selected = new Set();
     const { close, body } = openModal('卡密管理 - ' + p.name, '<div class="load-more">加载中...</div>', '', true);
+    const renderSelected = () => {
+      const el = $('#cf-sel-count', body);
+      const btn = $('[data-del-selected]', body);
+      if (el) el.textContent = selected.size;
+      if (btn) btn.disabled = selected.size === 0;
+    };
     const loadCards = async () => {
       body.innerHTML = `
         <div class="admin-form-grid" style="grid-column:1/-1;padding:12px;background:#F7F8FA;border-radius:8px;margin-bottom:12px">
           <div class="af-item"><label>批量添加卡密（每行一条，支持 CODE 或 CODE----SECRET 或 CODE,SECRET）</label><textarea class="input" id="cf-text" rows="4" placeholder="WZ1234ABCD5678----sEcRet999&#10;WZ2234ABCD5678"></textarea></div>
-          <div class="af-item"><label>或自动生成</label><div style="display:flex;gap:8px;align-items:center"><input class="input" id="cf-count" type="number" value="100" min="1" max="10000" style="width:100px"> <button class="btn btn-sm btn-primary" data-gen>自动生成</button></div></div>
-          <div class="af-item" style="grid-column:1/-1;display:flex;align-items:center;gap:10px"><button class="btn btn-sm btn-primary" data-add>添加卡密</button><span class="text-3 text-sm">当前库存：<b class="text-primary">${p.stock}</b> 条未使用</span></div>
+          <div class="af-item"><label>自动生成（填前缀和起始编号可生成连续卡号，密钥随机）</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="input" id="cf-prefix" placeholder="前缀，如 WZ3345ABCD" style="width:150px"><input class="input" id="cf-start" type="number" placeholder="起始编号" min="0" style="width:100px"><input class="input" id="cf-count" type="number" value="100" min="1" max="10000" style="width:80px"> <button class="btn btn-sm btn-primary" data-gen>自动生成</button></div></div>
+          <div class="af-item" style="grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-sm btn-primary" data-add>添加卡密</button><button class="btn btn-sm btn-outline" data-import>导入 Excel</button><input type="file" id="cf-file" accept=".xlsx,.xls,.csv" style="display:none"><button class="btn btn-sm btn-outline" data-export>导出 CSV</button><button class="btn btn-sm btn-danger" data-del-selected disabled>删除选中（<span id="cf-sel-count">0</span>）</button><button class="btn btn-sm btn-outline" data-clear-unused>清空未使用</button><span class="text-3 text-sm">当前库存：<b class="text-primary" id="cf-stock">${p.stock}</b> 条未使用</span></div>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:12px">
           <button class="btn btn-sm ${status === 'unused' ? 'btn-primary' : 'btn-plain'}" data-st="unused">未使用</button>
@@ -460,33 +486,117 @@ async function aProducts() {
       });
       $('[data-gen]', body).addEventListener('click', async () => {
         const count = parseInt($('#cf-count', body).value) || 100;
+        const prefix = ($('#cf-prefix', body)?.value || '').trim();
+        const startNo = parseInt($('#cf-start', body)?.value) || 0;
         try {
-          const r = await API.post('/admin/products/' + p.id + '/cards', { autoGenerate: true, count }, { admin: true });
+          const r = await API.post('/admin/products/' + p.id + '/cards', { autoGenerate: true, count, prefix, startNo }, { admin: true });
           toast(r.msg, 'success');
+          loadCards();
+          load();
+        } catch (e) { toast(e.message, 'error'); }
+      });
+      $('[data-import]', body).addEventListener('click', () => $('#cf-file', body).click());
+      $('#cf-file', body).addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const ext = f.name.split('.').pop().toLowerCase();
+        if (!['xlsx', 'xls', 'csv'].includes(ext)) return toast('请选择 .xlsx / .xls / .csv 文件', 'error');
+        const fr = new FileReader();
+        fr.onload = async () => {
+          try {
+            const data = String(fr.result).split(',')[1] || '';
+            const r = await API.post('/admin/products/' + p.id + '/cards/import', { data, filename: f.name }, { admin: true });
+            toast(r.msg, 'success');
+            loadCards();
+            load();
+          } catch (err) { toast(err.message, 'error'); }
+        };
+        fr.readAsDataURL(f);
+        e.target.value = '';
+      });
+      $('[data-export]', body).addEventListener('click', async () => {
+        try {
+          const tk = localStorage.getItem('admin_token');
+          const resp = await fetch('/api/admin/products/' + p.id + '/cards/export?status=' + status, { headers: { Authorization: 'Bearer ' + tk } });
+          if (!resp.ok) throw new Error('导出失败');
+          const blob = await resp.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (p.name || '卡密') + '-' + (status === 'all' ? '全部' : status === 'used' ? '已使用' : '未使用') + '.csv';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+          toast('已导出', 'success');
+        } catch (e) { toast(e.message, 'error'); }
+      });
+      // 删除选中（跨页累计勾选）
+      $('[data-del-selected]', body).addEventListener('click', async () => {
+        const ids = [...selected];
+        if (!ids.length) return;
+        if (!await dialog({ title: '批量删除卡密', text: `确定删除选中的 ${ids.length} 条卡密？（已售出的会自动跳过）`, confirmText: '删除', cancelText: '取消', danger: true })) return;
+        try {
+          const r = await API.post('/admin/cards/batch-delete', { ids }, { admin: true });
+          toast(r.msg, 'success');
+          selected.clear();
+          loadCards();
+          load();
+        } catch (e) { toast(e.message, 'error'); }
+      });
+      // 清空当前商品全部未使用卡密
+      $('[data-clear-unused]', body).addEventListener('click', async () => {
+        if (!await dialog({ title: '清空未使用卡密', text: `确定删除「${p.name}」全部未使用卡密？（已售出的保留）此操作不可恢复！`, confirmText: '清空', cancelText: '取消', danger: true })) return;
+        if (!await dialog({ title: '再次确认', text: '请再次确认：将删除全部未使用卡密，库存将清零。', confirmText: '确认清空', cancelText: '取消', danger: true })) return;
+        try {
+          const r = await API.post('/admin/products/' + p.id + '/cards/clear', { status }, { admin: true });
+          toast(r.msg, 'success');
+          selected.clear();
           loadCards();
           load();
         } catch (e) { toast(e.message, 'error'); }
       });
       const listBox = $('#cf-list', body);
       const r = await API.get('/admin/products/' + p.id + '/cards?status=' + status + '&page=' + cpage + '&size=' + cpSize, { admin: true });
+      // 库存数字实时刷新（取自接口返回的未使用计数，而非打开弹窗时的快照）
+      const stockEl = $('#cf-stock', body);
+      if (stockEl) stockEl.textContent = r.unused;
+      renderSelected();
       listBox.innerHTML = `
         <table class="table">
-          <thead><tr><th>#</th><th>卡号</th><th>密码/密钥</th><th>状态</th><th>售出时间</th><th>操作</th></tr></thead>
+          <thead><tr><th style="width:36px"><input type="checkbox" id="cf-chk-all" title="全选本页"></th><th>#</th><th>卡号</th><th>密码/密钥</th><th>状态</th><th>售出时间</th><th>操作</th></tr></thead>
           <tbody>${r.list.map((c) => `
             <tr>
+              <td><input type="checkbox" class="cf-chk" data-id="${c.id}" ${c.status === 'unused' ? '' : 'disabled'} ${selected.has(c.id) ? 'checked' : ''}></td>
               <td>${c.id}</td>
               <td style="font-family:monospace">${esc(c.code)}</td>
               <td style="font-family:monospace">${esc(c.secret || '-')}</td>
               <td><span class="cell-status ${c.status}"></span>${c.status === 'unused' ? '未使用' : '已使用'}</td>
               <td class="text-3">${c.usedAt ? fmtTime(c.usedAt) : '-'}</td>
               <td>${c.status === 'unused' ? `<button class="btn btn-sm btn-plain" data-delcard="${c.id}">删除</button>` : '-'}</td>
-            </tr>`).join('') || '<tr><td colspan="6" class="text-3" style="text-align:center;padding:24px">暂无卡密</td></tr>'}</tbody>
+            </tr>`).join('') || '<tr><td colspan="7" class="text-3" style="text-align:center;padding:24px">暂无卡密</td></tr>'}</tbody>
         </table>
         ${pagerHtml(r.page, r.pages, r.total)}`;
       bindPager(listBox, (d) => { cpage += d; loadCards(); });
+      // 本页全选
+      const chkAll = $('#cf-chk-all', listBox);
+      if (chkAll) chkAll.addEventListener('change', () => {
+        $$('.cf-chk', listBox).forEach((cb) => {
+          if (cb.disabled) return;
+          cb.checked = chkAll.checked;
+          const id = Number(cb.getAttribute('data-id'));
+          if (chkAll.checked) selected.add(id); else selected.delete(id);
+        });
+        renderSelected();
+      });
+      // 行勾选
+      $$('.cf-chk', listBox).forEach((cb) => cb.addEventListener('change', () => {
+        const id = Number(cb.getAttribute('data-id'));
+        if (cb.checked) selected.add(id); else selected.delete(id);
+        renderSelected();
+      }));
       $$('[data-delcard]', listBox).forEach((b) => b.addEventListener('click', async () => {
         if (!await dialog({ title: '删除卡密', text: '确定删除该卡密？', confirmText: '删除', cancelText: '取消', danger: true })) return;
-        try { await API.del('/admin/cards/' + b.getAttribute('data-delcard'), { admin: true }); toast('已删除', 'success'); loadCards(); load(); }
+        try { await API.del('/admin/cards/' + b.getAttribute('data-delcard'), { admin: true }); selected.delete(Number(b.getAttribute('data-delcard'))); toast('已删除', 'success'); loadCards(); load(); }
         catch (e) { toast(e.message, 'error'); }
       }));
     };
@@ -655,7 +765,7 @@ async function aOrders() {
           <div class="dr"><span class="k">实付金额</span><span class="v price">¥${fmtPrice(full.payAmount)}</span></div>
           ${full.trackingNo ? `<div class="dr"><span class="k">物流信息</span><span class="v">${esc(full.logistics || '')} ${esc(full.trackingNo)}</span></div>` : ''}
           ${full.cancelReason ? `<div class="dr"><span class="k">取消/退款原因</span><span class="v">${esc(full.cancelReason)}</span></div>` : ''}
-          ${full.payProof ? `<div class="dr"><span class="k">付款凭证</span><span class="v"><a href="${esc(full.payProof)}" target="_blank" style="color:var(--primary)">查看截图</a></span></div>` : ''}
+          ${full.payProof ? `<div class="dr"><span class="k">付款凭证</span><span class="v"><a href="javascript:;" id="od-view-proof" style="color:var(--primary)">查看截图</a></span></div>` : ''}
         </div>
         <div style="margin-top:14px;font-weight:600;margin-bottom:8px">商品明细</div>
         <table class="table">
@@ -694,6 +804,11 @@ async function aOrders() {
           $('#od-msg', body).value = '';
         } catch (e) { toast(e.message, 'error'); }
       });
+      $('#od-view-proof', body)?.addEventListener('click', () => {
+        const url = full.payProof;
+        const { body: pb } = openModal('付款截图', `<div style="display:flex;justify-content:center"><img src="${esc(url)}" onerror="this.outerHTML='<div style=text-align:center;padding:30px;color:#888>图片加载失败：' + escape(this.src) + '</div>'" style="max-width:100%;max-height:70vh;border-radius:10px" alt="付款截图"></div>`);
+        pb.addEventListener('click', () => {});
+      });
       $('#od-save-price', body)?.addEventListener('click', async () => {
         const price = parseFloat($('#od-price', body).value);
         if (isNaN(price) || price < 0) return toast('请输入正确的金额', 'error');
@@ -708,17 +823,24 @@ async function aOrders() {
   }
 
   function shipModal(o) {
+    const isVirtual = o.goods && o.goods.every((g) => g.type === 'auto');
     const { close, body, mask } = openModal('订单发货 - ' + o.orderNo, `
       <div class="admin-form-grid">
-        <div class="af-item"><label>物流公司</label><input class="input" id="sf-log" value="顺丰速运" placeholder="如：顺丰速运 / 中通快递"></div>
-        <div class="af-item"><label>物流单号 *</label><input class="input" id="sf-no" placeholder="请输入快递单号"></div>
+        ${isVirtual ? `<div class="af-item full"><div class="text-3 text-sm" style="padding:4px 0">虚拟商品（自动发货），无需物流单号，可直接确认发货；如需补发卡密可在下方粘贴。</div></div>`
+          : `<div class="af-item"><label>物流公司</label><input class="input" id="sf-log" value="顺丰速运" placeholder="如：顺丰速运 / 中通快递"></div>
+             <div class="af-item"><label>物流单号</label><input class="input" id="sf-no" placeholder="请输入快递单号（实体商品必填）"></div>`}
+        <div class="af-item full"><label>补发卡密（选填，每行一条）</label><textarea class="input" id="sf-cards" rows="3" placeholder="WZ1234ABCD5678----sEcRet999"></textarea></div>
       </div>`, `<button class="btn btn-plain" data-cancel>取消</button><button class="btn btn-primary" data-save>确认发货</button>`);
     $('[data-cancel]', mask).addEventListener('click', close);
     $('[data-save]', mask).addEventListener('click', async () => {
-      const trackingNo = $('#sf-no', body).value.trim();
-      if (!trackingNo) return toast('请输入物流单号', 'error');
+      const trackingNo = isVirtual ? '' : $('#sf-no', body).value.trim();
+      if (!isVirtual && !trackingNo) return toast('请输入物流单号', 'error');
       try {
-        await API.post('/admin/orders/' + o.id + '/ship', { trackingNo, logistics: $('#sf-log', body).value.trim() }, { admin: true });
+        await API.post('/admin/orders/' + o.id + '/ship', {
+          trackingNo,
+          logistics: isVirtual ? '' : $('#sf-log', body).value.trim(),
+          cards: $('#sf-cards', body).value
+        }, { admin: true });
         toast('发货成功', 'success');
         close();
         load();
@@ -1558,7 +1680,7 @@ async function aWithdrawals() {
     const rows = (d.list || []).map((w) => `<tr>
       <td><div class="fw-600">${esc(w.branchName)}</div><div class="text-3 text-xs">${esc(w.branchUsername || '')}</div></td>
       <td class="fw-600" style="color:#FF6A00">¥${fmtPrice(w.amount)}</td>
-      <td class="text-sm">${esc(w.account)}</td>
+      <td class="text-sm">${esc(w.account)}${w.qrcode ? `<div style="margin-top:4px"><img src="${esc(w.qrcode)}" style="width:56px;height:56px;object-fit:contain;border:1px solid #eee;border-radius:6px" alt="收款码"></div>` : ''}</td>
       <td>${w.status === 'pending' ? '<span class="tag tag-warn">待审核</span>' : w.status === 'approved' ? '<span class="tag tag-primary">已通过</span>' : w.status === 'paid' ? '<span class="tag tag-success">已打款</span>' : w.status === 'rejected' ? '<span class="tag tag-danger">已驳回</span>' : '<span class="tag tag-danger">已取消</span>'}</td>
       <td class="text-xs text-3">${w.reply || '-'}<br>${new Date(w.createdAt * 1000).toLocaleString('zh-CN', { hour12: false })}</td>
       <td>
@@ -1654,6 +1776,7 @@ async function aSettings() {
       <div class="panel-head"><span class="ph-title">交易与营销</span></div>      <div class="panel-body">
         <div class="admin-form-grid">
           <div class="af-item"><label>积分比例（1元=?积分）</label><input class="input" id="s-rate" type="number" value="${s.pointsRate}"></div>
+          <div class="af-item"><label>积分兑换比例（?积分=1元）</label><input class="input" id="s-exrate" type="number" value="${s.pointsExchangeRate || 100}" title="多少积分可以兑换1元余额"></div>
           <div class="af-item"><label>注册赠送积分</label><input class="input" id="s-regpts" type="number" value="${s.registerPoints}"></div>
           <div class="af-item"><label>自动确认收货（天）</label><input class="input" id="s-confirm" type="number" value="${s.autoConfirmDays}"></div>
           <div class="af-item"><label>未支付自动取消（分钟）</label><input class="input" id="s-cancel" type="number" value="${s.pendingCancelMinutes}"></div>
@@ -1701,8 +1824,22 @@ async function aSettings() {
       <div class="panel-body">
         <div class="admin-form-grid">
           <div class="af-item"><label>启用手动转账</label><label class="toggle"><input type="checkbox" id="s-mp-enable" ${s.manualPayEnabled ? 'checked' : ''}><i></i></label></div>
-          <div class="af-item full"><label>微信收款码（图片URL）</label><input class="input" id="s-mp-wx" value="${esc(s.wechatQrcode)}" placeholder="上传微信收款码后粘贴图片链接，或填图片URL"></div>
-          <div class="af-item full"><label>支付宝收款码（图片URL）</label><input class="input" id="s-mp-ali" value="${esc(s.alipayQrcode)}" placeholder="上传支付宝收款码后粘贴图片链接，或填图片URL"></div>
+          <div class="af-item full">
+            <label>微信收款码</label>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <input class="input" id="s-mp-wx" value="${esc(s.wechatQrcode)}" placeholder="点击右侧上传图片，或粘贴图片URL" style="flex:1">
+              <button class="btn btn-outline btn-sm" id="s-mp-wx-up" style="flex-shrink:0">${icon('upload', 14)} 上传</button>
+            </div>
+            <div id="s-mp-wx-preview" style="margin-top:8px"></div>
+          </div>
+          <div class="af-item full">
+            <label>支付宝收款码</label>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <input class="input" id="s-mp-ali" value="${esc(s.alipayQrcode)}" placeholder="点击右侧上传图片，或粘贴图片URL" style="flex:1">
+              <button class="btn btn-outline btn-sm" id="s-mp-ali-up" style="flex-shrink:0">${icon('upload', 14)} 上传</button>
+            </div>
+            <div id="s-mp-ali-preview" style="margin-top:8px"></div>
+          </div>
           <div class="af-item full"><label>付款说明（显示给买家）</label><textarea class="input" id="s-mp-notice" rows="2" placeholder="如：请转账时备注订单号，付款后上传截图，客服确认后自动发货">${esc(s.payNotice)}</textarea></div>
         </div>
         <div class="text-3 text-sm" style="margin-top:10px">启用后，买家可选择「手动转账」支付，扫码付款到你个人微信/支付宝，上传付款截图后订单变为待确认状态，你在订单管理中点「确认收款」即可自动发卡。完全免费，无需任何支付接口。</div>
@@ -1720,6 +1857,42 @@ async function aSettings() {
     <div class="form-actions" style="padding:0 0 30px;max-width:820px"><button class="btn btn-primary" id="s-save" style="width:160px">保存全部设置</button></div>`,
     async () => {
       up.mount();
+      // 微信/支付宝收款码：一键上传图片并回填 URL + 预览
+      const bindQrUpload = (upBtnId, inputId, previewId) => {
+        const upBtn = $(upBtnId);
+        const input = $(inputId);
+        const preview = $(previewId);
+        const renderPreview = () => {
+          const u = (input.value || '').trim();
+          preview.innerHTML = u ? `<img src="${esc(u)}" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line)" onerror="this.style.display='none'">` : '';
+        };
+        renderPreview();
+        input.addEventListener('input', renderPreview);
+        upBtn.addEventListener('click', () => {
+          const fi = document.createElement('input');
+          fi.type = 'file';
+          fi.accept = 'image/*';
+          fi.onchange = async () => {
+            const f = fi.files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = async () => {
+              try {
+                const data = String(reader.result).split(',')[1];
+                const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+                const r = await API.post('/admin/upload', { data, ext }, { admin: true });
+                input.value = r.url;
+                renderPreview();
+                toast('收款码已上传', 'success');
+              } catch (e) { toast(e.message, 'error'); }
+            };
+            reader.readAsDataURL(f);
+          };
+          fi.click();
+        });
+      };
+      bindQrUpload('#s-mp-wx-up', '#s-mp-wx', '#s-mp-wx-preview');
+      bindQrUpload('#s-mp-ali-up', '#s-mp-ali', '#s-mp-ali-preview');
       $('#s-save').addEventListener('click', async () => {
         try {
           const newName = $('#s-name').value.trim();
@@ -1733,6 +1906,7 @@ async function aSettings() {
             contactWechat: $('#s-wechat').value.trim(),
             hotKeywords: $('#s-hot').value.split(/[,，]/).map((x) => x.trim()).filter(Boolean),
             pointsRate: parseFloat($('#s-rate').value) || 0,
+            pointsExchangeRate: parseInt($('#s-exrate').value) || 100,
             registerPoints: parseInt($('#s-regpts').value) || 0,
             autoConfirmDays: parseInt($('#s-confirm').value) || 7,
             pendingCancelMinutes: parseInt($('#s-cancel').value) || 30,

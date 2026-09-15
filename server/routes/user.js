@@ -346,7 +346,7 @@ router.post('/orders', auth.requireUser, (req, res) => {
     couponAmount: calc.couponAmount,
     payAmount: calc.payAmount,
     address: { name: addr.name, phone: addr.phone, region: addr.region, detail: addr.detail },
-    remark: String(remark || '').replace(/<[^>]*>/g, '').trim().slice(0, 200),
+    remark: util.sanitizeHtml(remark).slice(0, 200),
     status: 'pending',       // pending/paid/shipped/completed/cancelled/refunded
     payMethod: '', payChannel: '', payAt: 0,
     shippedAt: 0, completedAt: 0, cancelledAt: 0,
@@ -518,7 +518,7 @@ router.post('/orders/:id/cancel', auth.requireUser, (req, res) => {
   if (!['pending', 'pending_confirm'].includes(o.status)) return res.json(util.fail('当前状态不可取消'));
   o.status = 'cancelled';
   o.cancelledAt = util.now();
-  o.cancelReason = reason;
+  o.cancelReason = util.sanitizeHtml(reason).slice(0, 200);
   releaseCoupon(d, o);
   db.save();
   res.json(util.ok({ msg: '订单已取消' }));
@@ -581,7 +581,7 @@ router.post('/orders/:id/aftersale', auth.requireUser, (req, res) => {
   const af = {
     id: util.nextId('aftersales'), orderId: o.id, userId: req.user.id,
     type: type === 'return' ? 'return' : 'refund',
-    reason, images: (Array.isArray(images) ? images : []).slice(0, 6),
+    reason: util.sanitizeHtml(reason).slice(0, 200), images: (Array.isArray(images) ? images : []).slice(0, 6),
     amount: o.payAmount,
     status: 'pending', reply: '', createdAt: util.now(), handledAt: 0
   };
@@ -632,6 +632,35 @@ router.get('/points-logs', auth.requireUser, (req, res) => {
   res.json(util.ok({ ...util.paginate(list, page, size), balance: req.user.points || 0 }));
 });
 
+/** 积分兑换余额 */
+router.post('/points/exchange', auth.requireUser, (req, res) => {
+  const { points } = req.body || {};
+  const pts = parseInt(points);
+  if (!pts || pts <= 0) return res.json(util.fail('请输入有效的积分数量'));
+  if (pts % 100 !== 0) return res.json(util.fail('积分需为100的整数倍'));
+  const d = db.load();
+  const s = d.settings || {};
+  const rate = s.pointsExchangeRate || 100;
+  if (req.user.points < pts) return res.json(util.fail('积分不足，当前 ' + req.user.points + ' 积分'));
+  const amount = Math.round((pts / rate) * 100) / 100;
+  if (amount <= 0) return res.json(util.fail('兑换金额无效'));
+  req.user.points -= pts;
+  req.user.balance = Math.round(((req.user.balance || 0) + amount) * 100) / 100;
+  d.pointsLogs.push({
+    id: util.nextId('pointsLogs'), userId: req.user.id, change: -pts,
+    balance: req.user.points, type: 'exchange', desc: '积分兑换余额 ' + pts + ' 积分 → ¥' + amount.toFixed(2),
+    createdAt: util.now()
+  });
+  d.balanceLogs = d.balanceLogs || [];
+  d.balanceLogs.push({
+    id: util.nextId('balanceLogs'), userId: req.user.id, change: amount,
+    balance: req.user.balance, type: 'exchange', desc: '积分兑换余额 ' + pts + ' 积分 → ¥' + amount.toFixed(2),
+    createdAt: util.now()
+  });
+  db.save();
+  res.json(util.ok({ points: req.user.points, balance: req.user.balance, amount, msg: '兑换成功，' + pts + ' 积分 → ¥' + amount.toFixed(2) }));
+});
+
 /* ================= 工单 ================= */
 
 router.get('/tickets', auth.requireUser, (req, res) => {
@@ -647,7 +676,7 @@ router.post('/tickets', auth.requireUser, (req, res) => {
   if (!type || !description) return res.json(util.fail('请填写问题类型与描述'));
   const t = {
     id: util.nextId('tickets'), userId: req.user.id, type,
-    description, images: (Array.isArray(images) ? images : []).slice(0, 6),
+    description: util.sanitizeHtml(description).slice(0, 500), images: (Array.isArray(images) ? images : []).slice(0, 6),
     status: 'open', reply: '', createdAt: util.now(), updatedAt: util.now()
   };
   db.mutate((d) => d.tickets.push(t));
@@ -673,7 +702,7 @@ router.get('/chat', auth.requireUser, (req, res) => {
 /** 发送消息（规则自动回复） */
 router.post('/chat', auth.requireUser, (req, res) => {
   const { content } = req.body || {};
-  const msg = String(content || '').trim();
+  const msg = util.sanitizeHtml(String(content || '')).trim();
   if (!msg) return res.json(util.fail('消息不能为空'));
   if (msg.length > 500) return res.json(util.fail('消息过长'));
   const d = db.load();
