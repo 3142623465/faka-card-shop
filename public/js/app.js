@@ -2070,6 +2070,7 @@ async function vUser() {
         <div class="cell-group">
           <div class="cell" data-goto="#/open-branch"><span class="cell-icon" style="color:#7C3AED">${icon('branch', 20)}</span><div class="cell-body cell-title">开通分站</div><div class="cell-value" id="branch-state">成为代理商</div><span class="cell-arrow">${icon('right', 16)}</span></div>
           <div class="cell" data-goto="#/service/chat"><span class="cell-icon">${icon('service', 20)}</span><div class="cell-body cell-title">联系客服</div><span class="cell-arrow">${icon('right', 16)}</span></div>
+          <div class="cell" data-goto="#/security"><span class="cell-icon">${icon('lock', 20)}</span><div class="cell-body cell-title">账号安全</div><div class="cell-value">${esc(me.user.email || '未绑定邮箱')}</div><span class="cell-arrow">${icon('right', 16)}</span></div>
           <div class="cell" data-goto="#/settings"><span class="cell-icon">${icon('setting', 20)}</span><div class="cell-body cell-title">系统设置</div><span class="cell-arrow">${icon('right', 16)}</span></div>
         </div>
       </div>`,
