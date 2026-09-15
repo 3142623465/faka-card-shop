@@ -90,6 +90,7 @@ const ROUTES = {
   'addresses': { view: vAddresses, auth: true },
   'address': { view: vAddressEdit, auth: true },
   'points': { view: vPoints, auth: true },
+  'balance': { view: vBalance, auth: true },
   'coupons': { view: vCoupons, auth: true },
   'vip': { view: vVip, auth: true },
   'service': { view: vService, tab: 'service', auth: true },
@@ -2045,6 +2046,10 @@ async function vUser() {
             <div class="fw-600" style="font-size:20px">${me.user.points}</div>
             <div class="u-points">积分</div>
           </div>
+          <div style="text-align:center" data-goto="#/balance">
+            <div class="fw-600" style="font-size:20px">¥${fmtPrice(me.user.balance || 0)}</div>
+            <div class="u-points">余额</div>
+          </div>
         </div>
       </div>
       <div class="section" style="margin-top:-14px;position:relative">
@@ -2065,6 +2070,7 @@ async function vUser() {
         <div class="cell-group">
           <div class="cell" data-goto="#/vip"><span class="cell-icon">${icon('vip', 20)}</span><div class="cell-body cell-title">会员中心</div><div class="cell-value">${esc(me.user.levelName)}</div><span class="cell-arrow">${icon('right', 16)}</span></div>
           <div class="cell" data-goto="#/points"><span class="cell-icon">${icon('point', 20)}</span><div class="cell-body cell-title">我的积分</div><div class="cell-value">${me.user.points} 分</div><span class="cell-arrow">${icon('right', 16)}</span></div>
+          <div class="cell" data-goto="#/balance"><span class="cell-icon">${icon('wallet', 20)}</span><div class="cell-body cell-title">我的余额</div><div class="cell-value">¥${fmtPrice(me.user.balance || 0)}</div><span class="cell-arrow">${icon('right', 16)}</span></div>
           <div class="cell" data-goto="#/aftersales"><span class="cell-icon">${icon('refresh', 20)}</span><div class="cell-body cell-title">售后管理</div><span class="cell-arrow">${icon('right', 16)}</span></div>
         </div>
         <div class="cell-group">
@@ -3082,6 +3088,38 @@ async function vPoints() {
         try { await API.post('/user/coupons/claim/' + el.getAttribute('data-exchange')); toast('兑换成功', 'success'); location.reload(); }
         catch (e) { toast(e.message, 'error'); }
       }));
+    }
+  };
+}
+
+/* ============================================================
+   我的余额
+   ============================================================ */
+async function vBalance() {
+  let logs = { list: [], balance: 0 };
+  try { logs = await API.get('/user/balance-logs?size=50'); } catch (e) {}
+  return {
+    html: `${navBar('我的余额')}
+      <div class="pay-amount-box" style="border-radius:0">
+        <div class="pa-label">账户余额</div>
+        <div class="pa-num">¥${fmtPrice(logs.balance || 0)}</div>
+        <div class="pa-label mt-8">余额可用于开通分站、升级分站等，充值请联系客服</div>
+      </div>
+      <div class="section">
+        <div class="section-title"><span>余额明细</span></div>
+        ${logs.list && logs.list.length ? logs.list.map((l) => `
+          <div class="flex between" style="padding:10px 2px;border-bottom:1px solid var(--line)">
+            <div><div class="text-sm">${esc(l.desc)}</div><div class="text-xs text-3 mt-8">${fmtTime(l.createdAt)}</div></div>
+            <div style="text-align:right">
+              <span class="${l.change > 0 ? 'text-success' : 'text-danger'} fw-600">${l.change > 0 ? '+' : ''}¥${fmtPrice(l.change)}</span>
+              <div class="text-xs text-3 mt-4">余额 ¥${fmtPrice(l.balance)}</div>
+            </div>
+          </div>`).join('') : emptyHtml('暂无余额记录', '', '')}
+      </div>`,
+    mount() {
+      const root = $('#view');
+      bindBack(root);
+      bindGoto(root);
     }
   };
 }
