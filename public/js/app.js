@@ -1,4 +1,4 @@
-/**
+﻿/**
  * app.js - 发卡网用户端（SPA）
  * 页面路由：#/home #/login #/category #/product/1 #/cart #/checkout ... 
  * 视图约定：每个视图返回 { html, mount }，mount 在注入后执行事件绑定。

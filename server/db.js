@@ -1,4 +1,4 @@
-/**
+﻿/**
  * db.js - 数据库适配层（双模式）
  * - 云部署（MONGODB_URI 存在）：内存运行 + MongoDB 全量持久化，重启不丢失
  * - 本地开发（无 MONGODB_URI）：JSON 文件持久化（data/db.json）
@@ -166,10 +166,10 @@ function nextId(entity) {
 }
 
 /** 立即落盘 */
-function flushNow() {
+async function flushNow() {
   if (!db || !dirty) return;
   if (USE_MONGO) {
-    saveToMongo().catch(() => {});
+    try { await saveToMongo(); } catch (e) { console.error('[db] flushNow失败:', e.message); }
   } else {
     saveToFile();
   }

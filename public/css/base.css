@@ -393,16 +393,19 @@ ul, ol { list-style: none; }
 /* ---------- 客服对话 ---------- */
 .chat-page { display: flex; flex-direction: column; height: calc(100vh - var(--nav-h)); padding-bottom: 0; }
 .chat-list { flex: 1; overflow-y: auto; padding: 14px 12px; }
-.chat-bubble { display: flex; gap: 8px; margin-bottom: 14px; }
+.chat-bubble { display: flex; gap: 8px; margin-bottom: 14px; align-items: flex-start; }
 .chat-bubble .chat-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #F0F2F5; }
+.chat-bubble > div { max-width: 75%; display: flex; flex-direction: column; }
 .chat-bubble .chat-content {
-  max-width: 72%; background: #fff; border-radius: 12px; padding: 10px 12px;
-  font-size: 14px; line-height: 1.6; box-shadow: var(--shadow); word-break: break-word; white-space: pre-wrap;
+  background: #fff; border-radius: 12px; padding: 8px 12px;
+  font-size: 14px; line-height: 1.5; box-shadow: var(--shadow); word-break: break-word; white-space: pre-wrap;
+  display: inline-block; max-width: 100%;
 }
 .chat-bubble.me { flex-direction: row-reverse; }
+.chat-bubble.me > div { align-items: flex-end; }
 .chat-bubble.me .chat-content { background: var(--primary); color: #fff; border-radius: 12px 12px 2px 12px; }
 .chat-bubble.bot .chat-content { border-radius: 12px 12px 12px 2px; }
-.chat-bubble .chat-time { font-size: 10px; color: var(--text-3); align-self: flex-end; }
+.chat-bubble .chat-time { font-size: 10px; color: var(--text-3); margin-top: 4px; white-space: nowrap; }
 .chat-input-bar {
   border-top: 1px solid var(--line); background: #fff; padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 8px;

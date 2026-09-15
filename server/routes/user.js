@@ -633,7 +633,7 @@ router.get('/points-logs', auth.requireUser, (req, res) => {
 });
 
 /** 积分兑换余额 */
-router.post('/points/exchange', auth.requireUser, (req, res) => {
+router.post('/points/exchange', auth.requireUser, async (req, res) => {
   const { points } = req.body || {};
   const pts = parseInt(points);
   if (!pts || pts <= 0) return res.json(util.fail('请输入有效的积分数量'));
@@ -658,6 +658,7 @@ router.post('/points/exchange', auth.requireUser, (req, res) => {
     createdAt: util.now()
   });
   db.save();
+  await db.flushNow(); // 积分兑换立即落盘，防止serverless环境丢失
   res.json(util.ok({ points: req.user.points, balance: req.user.balance, amount, msg: '兑换成功，' + pts + ' 积分 → ¥' + amount.toFixed(2) }));
 });
 
@@ -700,7 +701,7 @@ router.get('/chat', auth.requireUser, (req, res) => {
 });
 
 /** 发送消息（规则自动回复） */
-router.post('/chat', auth.requireUser, (req, res) => {
+router.post('/chat', auth.requireUser, async (req, res) => {
   const { content } = req.body || {};
   const msg = util.sanitizeHtml(String(content || '')).trim();
   if (!msg) return res.json(util.fail('消息不能为空'));
@@ -711,6 +712,7 @@ router.post('/chat', auth.requireUser, (req, res) => {
   const reply = botReply(msg);
   d.chat.push({ id: util.nextId('chat'), userId: req.user.id, role: 'bot', content: reply, createdAt: t + 1, read: 1 });
   db.save();
+  await db.flushNow(); // 聊天记录立即落盘
   res.json(util.ok({ reply, replyRole: 'bot' }));
 });
 
