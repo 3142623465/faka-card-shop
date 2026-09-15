@@ -149,7 +149,11 @@ function bindGoto(root) {
 function bindBack(root) {
   const btn = $('[data-back]', root);
   if (btn) btn.addEventListener('click', () => {
-    location.hash = '#/home';
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      location.hash = '#/home';
+    }
   });
 }
 
