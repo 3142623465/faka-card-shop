@@ -212,7 +212,7 @@ function sanitizeQuickNav(list) {
       cls: String((q && q.cls) || 'c1').slice(0, 8),
       img: String((q && q.img) || '').slice(0, 300),
       link: String((q && q.link) || '#/home').slice(0, 200),
-      enabled: !q || q.enabled !== false,
+      enabled: !(q && (q.enabled === false || q.enabled === 0 || q.enabled === '0' || q.enabled === 'false')),
       fixed: false
     };
   });
