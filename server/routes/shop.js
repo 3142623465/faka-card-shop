@@ -1,4 +1,4 @@
-﻿/**
+/**
  * routes/shop.js - 商城浏览类接口（游客可访问）
  * 轮播 / 分类 / 商品列表与详情 / 热门搜索 / FAQ / 可领优惠券
  */
@@ -158,6 +158,7 @@ router.get('/site', (req, res) => {
     wechatQrcode: s.wechatQrcode || '',
     alipayQrcode: s.alipayQrcode || '',
     payNotice: s.payNotice || '',
+    pointsExchangeRate: s.pointsExchangeRate || 100,
     pendingCancelMinutes: s.pendingCancelMinutes === undefined ? 30 : Number(s.pendingCancelMinutes) || 30
   }));
 });
