@@ -1157,7 +1157,7 @@ router.get('/settings', auth.requireAdmin, (req, res) => {
 
 router.put('/settings', auth.requireAdmin, (req, res) => {
   const s = db.load().settings;
-  const { siteName, slogan, logo, icp, contactPhone, contactQQ, contactWechat, payWechat, payAlipay, paySandbox, wechatMchId, wechatApiKey, wechatAppId, wechatCertPath, wechatSerialNo, wechatPrivateKey, wechatPlatformCert, alipayAppId, alipayPrivateKey, alipayPublicKey, alipayGateway, xunhuEnabled, xunhuAppId, xunhuAppSecret, xunhuGateway, manualPayEnabled, wechatQrcode, alipayQrcode, payNotice, oauthWechatAppid, oauthWechatSecret, oauthQqAppid, oauthQqSecret, pointsRate, registerPoints, autoConfirmDays, pendingCancelMinutes, branchMaxDepth, hotKeywords, quickNav } = req.body || {};
+  const { siteName, slogan, logo, icp, contactPhone, contactQQ, contactWechat, payWechat, payAlipay, paySandbox, wechatMchId, wechatApiKey, wechatAppId, wechatCertPath, wechatSerialNo, wechatPrivateKey, wechatPlatformCert, alipayAppId, alipayPrivateKey, alipayPublicKey, alipayGateway, xunhuEnabled, xunhuAppId, xunhuAppSecret, xunhuGateway, manualPayEnabled, wechatQrcode, alipayQrcode, payNotice, oauthWechatAppid, oauthWechatSecret, oauthQqAppid, oauthQqSecret, pointsRate, pointsExchangeRate, registerPoints, autoConfirmDays, pendingCancelMinutes, branchMaxDepth, hotKeywords, quickNav } = req.body || {};
   if (siteName !== undefined) s.siteName = String(siteName).slice(0, 30);
   if (slogan !== undefined) s.slogan = String(slogan).slice(0, 60);
   if (logo !== undefined) s.logo = logo;
@@ -1192,6 +1192,7 @@ router.put('/settings', auth.requireAdmin, (req, res) => {
   if (oauthQqAppid !== undefined) s.oauthQqAppid = String(oauthQqAppid).slice(0, 64);
   if (oauthQqSecret !== undefined) s.oauthQqSecret = String(oauthQqSecret).slice(0, 128);
   if (pointsRate !== undefined) s.pointsRate = Math.max(0, Number(pointsRate) || 0);
+  if (pointsExchangeRate !== undefined) s.pointsExchangeRate = Math.max(1, parseInt(pointsExchangeRate) || 100);
   if (registerPoints !== undefined) s.registerPoints = Math.max(0, parseInt(registerPoints) || 0);
   if (autoConfirmDays !== undefined) s.autoConfirmDays = Math.max(1, parseInt(autoConfirmDays) || 7);
   if (pendingCancelMinutes !== undefined) s.pendingCancelMinutes = Math.max(1, parseInt(pendingCancelMinutes) || 30);
