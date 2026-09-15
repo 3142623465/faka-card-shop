@@ -39,7 +39,7 @@ async function connectMongo() {
   if (mongoReady) return;
   const mongoose = require('mongoose');
   mongoose.set('strictQuery', false);
-  await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
+  await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 30000, socketTimeoutMS: 30000, connectTimeoutMS: 30000 });
   mongoCol = mongoose.connection.db.collection('faka_main');
   mongoReady = true;
   console.log('[db] MongoDB 已连接');
