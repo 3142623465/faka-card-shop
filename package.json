@@ -1,27 +1,21 @@
 {
   "name": "card-shop",
   "version": "1.0.0",
-  "description": "发卡网系统（用户端 + 后台管理端），基于 Node.js + 原生 JS + JSON 文件数据库，可直接本地部署",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "seed": "node server/seed.js"
+    "build": "node -e \"console.log('ok')\"",
+    "seed": "node server/seed.js --force",
+    "reset": "node scripts/reset-demo-data.js",
+    "prod:clean": "node scripts/prepare-production.js",
+    "backup": "node scripts/backup-db.js",
+    "test": "node test-reports/api-test-round3.js",
+    "test:manual-pay": "node test-reports/api-test-manual-pay.js"
   },
-  "keywords": [
-    "发卡网",
-    "card-shop",
-    "自动发卡",
-    "卡密",
-    "商城"
-  ],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
     "mongoose": "^8.24.4",
-    "nodemailer": "^10.0.9"
-  },
-  "engines": {
-    "node": ">=14"
+    "nodemailer": "^10.0.9",
+    "xlsx": "^0.18.5"
   }
 }

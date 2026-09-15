@@ -3,3 +3,15 @@ data/
 uploads/
 *.log
 .DS_Store
+
+.env
+backups/
+
+# ---- 部署凭据与本地噪声（勿提交）----
+_token.txt
+_pca.json
+_check.js
+_conv.js
+logs/
+backups/
+.env

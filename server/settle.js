@@ -64,12 +64,13 @@ function revertBranchShare(d, o) {
  * @returns {{ok:boolean, error?:string, status?:string, autoShipped?:boolean, cardsDelivered?:number}}
  */
 function settlePaidOrder(d, o, payMethod) {
-  // 幂等保护：已结算订单直接返回当前状态
-  if (o.status !== 'pending') {
+  // 幂等保护：已结算订单（paid/shipped/refunded/cancelled/completed）直接返回当前状态。
+  // pending_confirm（手动转账待确认）视为可结算订单，恢复「确认收款 = 结算发货」语义（H-3）。
+  if (o.status !== 'pending' && o.status !== 'pending_confirm') {
     return { ok: true, status: o.status, autoShipped: o.status === 'shipped' && o.cardsDelivered > 0, cardsDelivered: o.cardsDelivered || 0 };
   }
 
-  // 校验库存并扣减
+  // 校验库存并扣减（统一库存池：manual 扣 stock；auto 发卡后按剩余卡密重算）
   for (const g of o.goods) {
     const p = d.products.find((x) => x.id === g.productId);
     if (!p || p.status === 0) return { ok: false, error: `「${g.name}」已下架` };
@@ -102,6 +103,11 @@ function settlePaidOrder(d, o, payMethod) {
     o.logistics = '卡密自动发货';
     o.cardsDelivered = o.goods.reduce((s, g) => s + g.quantity, 0);
     autoShipped = true;
+    // 统一库存池：自动发卡后按剩余未使用卡密重算商品库存
+    for (const g of o.goods) {
+      const p = d.products.find((x) => x.id === g.productId);
+      if (p) p.stock = d.cards.filter((c) => c.productId === p.id && c.status === 'unused').length;
+    }
   }
 
   // 分站差价分成（分站商品收益进入分站余额）

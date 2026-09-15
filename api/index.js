@@ -33,8 +33,19 @@ async function initDb() {
 
 function createApp() {
   const application = express();
-  application.use(express.json({ limit: '4mb' }));
-  application.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  // 捕获原始请求体（微信支付 v3 回调验签必须使用原始字节，JSON 重新序列化会导致签名不一致）
+  application.use(express.json({ limit: '4mb', verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); } }));
+  application.use(express.urlencoded({ extended: true, limit: '1mb', verify: (req, res, buf) => { if (!req.rawBody) req.rawBody = buf.toString('utf8'); } }));
+
+  // 安全响应头（与 server/server.js 对齐，M-2）
+  application.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'");
+    next();
+  });
 
   // 禁止API缓存
   application.use('/api', (req, res, next) => {

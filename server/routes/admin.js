@@ -541,6 +541,49 @@ router.get('/orders', auth.requireAdmin, (req, res) => {
   res.json(util.ok(pg));
 });
 
+router.get('/orders/export', auth.requireAdmin, (req, res) => {
+  const d = db.load();
+  const { status = 'all', keyword, branch } = req.query;
+  let list = d.orders;
+  if (status !== 'all') list = list.filter((o) => o.status === status);
+  if (branch) {
+    const b = d.branches.find((x) => x.username === String(branch).trim() || x.id === Number(branch));
+    if (!b) return res.json(util.fail('分站不存在'));
+    list = list.filter((o) => o.branchId === b.id);
+  }
+  if (keyword) {
+    const kw = String(keyword).toLowerCase();
+    list = list.filter((o) =>
+      o.orderNo.toLowerCase().indexOf(kw) >= 0 ||
+      (o.address.name || '').toLowerCase().indexOf(kw) >= 0 ||
+      (o.address.phone || '').indexOf(kw) >= 0 ||
+      o.goods.some((g) => g.name.toLowerCase().indexOf(kw) >= 0)
+    );
+  }
+  list.sort((a, b) => b.createdAt - a.createdAt);
+  const STATUS_TEXT = { pending: '待付款', pending_confirm: '待确认收款', paid: '待发货', shipped: '待收货', completed: '已完成', cancelled: '已取消', refunded: '已退款' };
+  const fmt = (ts) => { if (!ts) return ''; const t = new Date(ts * 1000); const p = (n) => String(n).padStart(2, '0'); return t.getFullYear() + '-' + p(t.getMonth() + 1) + '-' + p(t.getDate()) + ' ' + p(t.getHours()) + ':' + p(t.getMinutes()); };
+  const csvEscape = (v) => { const s = String(v == null ? '' : v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const head = ['订单号', '状态', '用户', '商品', '数量', '实付金额', '支付渠道', '下单时间', '收货人', '电话', '地址', '备注', '分站'];
+  const rows = list.map((o) => {
+    const user = d.users.find((u) => u.id === o.userId);
+    const br = o.branchId ? d.branches.find((x) => x.id === o.branchId) : null;
+    return [
+      o.orderNo, STATUS_TEXT[o.status] || o.status,
+      user ? (user.nickname || user.email || user.phone || '') : '',
+      o.goods.map((g) => g.name).join(' | '), o.goods.reduce((s, g) => s + (g.quantity || 1), 0),
+      (o.payAmount != null ? o.payAmount : o.totalAmount), o.channel || 'simulate', fmt(o.createdAt),
+      (o.address && o.address.name) || '', (o.address && o.address.phone) || '',
+      (o.address && [o.address.region, o.address.detail].filter(Boolean).join(' ')) || '',
+      o.remark || '', br ? br.name : ''
+    ].map(csvEscape).join(',');
+  });
+  const csv = '\uFEFF' + head.map(csvEscape).join(',') + '\r\n' + rows.join('\r\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="orders-' + new Date().toISOString().slice(0, 10) + '.csv"');
+  res.send(csv);
+});
+
 router.get('/orders/:id', auth.requireAdmin, (req, res) => {
   const d = db.load();
   const o = d.orders.find((x) => x.id === Number(req.params.id));

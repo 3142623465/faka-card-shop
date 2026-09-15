@@ -858,6 +858,7 @@ async function aOrders() {
         </select>
         <input class="input" id="o-kw" placeholder="订单号 / 买家手机号 / 商品名" style="width:240px">
         <button class="btn btn-sm btn-outline" data-search>搜索</button>
+        <button class="btn btn-sm btn-primary" data-export>导出 CSV</button>
       </div>
       <div id="o-box"><div class="load-more">加载中...</div></div>
     </div>`,
@@ -865,6 +866,24 @@ async function aOrders() {
       $('#o-status').addEventListener('change', () => { status = $('#o-status').value; page = 1; load(); });
       $('[data-search]').addEventListener('click', () => { keyword = $('#o-kw').value.trim(); page = 1; load(); });
       $('#o-kw').addEventListener('keydown', (e) => { if (e.key === 'Enter') { keyword = $('#o-kw').value.trim(); page = 1; load(); } });
+      $('[data-export]').addEventListener('click', async () => {
+        let url = '/api/admin/orders/export?status=' + encodeURIComponent(status);
+        if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
+        try {
+          const tk = localStorage.getItem('admin_token');
+          const r = await fetch(url, { headers: { Authorization: 'Bearer ' + (tk || '') } });
+          if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error((j && j.msg) || '导出失败'); }
+          const blob = await r.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'orders-' + new Date().toISOString().slice(0, 10) + '.csv';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+          toast('订单已导出', 'success');
+        } catch (e) { toast(e.message, 'error'); }
+      });
       load();
     }
   ];
@@ -1983,7 +2002,7 @@ async function aQuickNav() {
   return ['首页快捷入口', html, async function () {
     const root = $('#admin-main');
     qnUps.forEach((u) => u.mount());
-    $('[data-qn-del]', root).forEach((b) => b.addEventListener('click', () => { const row = b.closest('.qn-row'); if (row) row.remove(); }));
+    $$('[data-qn-del]', root).forEach((b) => b.addEventListener('click', () => { const row = b.closest('.qn-row'); if (row) row.remove(); }));
     $('#qn-add', root).addEventListener('click', () => {
       if (qnUps.length >= 12) return toast('最多 12 个快捷入口', 'error');
       const i = qnSeq++;
@@ -2007,7 +2026,7 @@ async function aQuickNav() {
     $('#qn-save', root).addEventListener('click', async () => {
       try {
         const quickNav = [];
-        $('#qn-list .qn-row').forEach((row) => {
+        $$('#qn-list .qn-row').forEach((row) => {
           const i = row.getAttribute('data-qn');
           const fixed = $('#qn-fixed-' + i, row).value === '1';
           quickNav.push({

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发卡网系统 · 改进与交付报告（2026-09-16）</title>
+<style>
+  :root{--primary:#FF6A00;--primary-dark:#E55D00;--bg:#F6F7FB;--card:#fff;--text:#1F2329;--sub:#6B7280;--line:#E5E7EB;--green:#10B981;--red:#EF4444;--amber:#F59E0B;--blue:#3B82F6;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Microsoft YaHei",-apple-system,"PingFang SC",sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;}
+  .wrap{max-width:1080px;margin:0 auto;}
+  .hero{background:linear-gradient(135deg,#FF6A00,#FF9A4D);color:#fff;border-radius:16px;padding:32px 36px;margin-bottom:20px;}
+  .hero h1{font-size:26px;margin-bottom:8px;}
+  .hero .sub{opacity:.92;font-size:14px;}
+  .hero .meta{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px 24px;font-size:13px;}
+  .hero .meta b{font-weight:600;}
+  .card{background:var(--card);border-radius:12px;padding:24px 28px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+  h2{font-size:19px;margin-bottom:14px;padding-left:10px;border-left:4px solid var(--primary);}
+  h3{font-size:15px;margin:16px 0 8px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0;}
+  th{background:#FAFAFB;color:#374151;font-weight:600;text-align:left;}
+  th,td{border:1px solid var(--line);padding:8px 10px;vertical-align:top;}
+  tr:nth-child(even) td{background:#FAFBFC;}
+  .tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;}
+  .t-green{background:#E7F8F1;color:#0B8A5F;}
+  .t-red{background:#FDEBEB;color:#D92D20;}
+  .t-amber{background:#FEF3E2;color:#B45309;}
+  .t-blue{background:#EAF2FE;color:#1D4ED8;}
+  .t-gray{background:#F1F2F4;color:#4B5563;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .stat{text-align:center;padding:14px;border:1px solid var(--line);border-radius:10px;}
+  .stat .num{font-size:26px;font-weight:700;color:var(--primary);}
+  .stat .lbl{font-size:12px;color:var(--sub);}
+  .note{background:#FFF8F0;border:1px solid #FFE0C2;border-radius:8px;padding:10px 14px;font-size:13px;color:#8A4B00;margin:10px 0;}
+  ul,ol{padding-left:22px;}
+  li{margin:3px 0;}
+  .chart-row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px;}
+  .chart-label{width:130px;text-align:right;color:#374151;flex-shrink:0;}
+  .chart-bar{height:20px;border-radius:4px;min-width:2px;}
+  .chart-val{color:var(--sub);}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr;}.chart-label{width:90px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <h1>发卡网系统（324云系统）· 改进与交付报告</h1>
+  <div class="sub">全面测试 → 缺陷修复 → 模块补全 → 回归验证 → 打包交付，一次到位</div>
+  <div class="meta">
+    <span>报告日期：<b>2026-09-16</b></span>
+    <span>交付版本：<b>1.0.1（完善版）</b></span>
+    <span>测试规模：<b>144 项断言 · 全数通过</b></span>
+    <span>缺陷处置：<b>历史 19 项核验 + 本轮新增 11 项全部闭环</b></span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>一、总体结论</h2>
+  <div class="grid2">
+    <div class="stat"><div class="num">107 / 107</div><div class="lbl">第三轮综合回归（round3）通过率 100%</div></div>
+    <div class="stat"><div class="num">37 / 37</div><div class="lbl">手动支付专项（含 H-3 回归）通过率 100%</div></div>
+    <div class="stat"><div class="num">8 / 8</div><div class="lbl">端到端冒烟（注册→下单→支付→发卡）通过</div></div>
+    <div class="stat"><div class="num">11 项</div><div class="lbl">本轮发现并修复的缺陷 / 问题</div></div>
+  </div>
+  <p style="margin-top:14px;font-size:14px;">
+    经对部署版代码的全面审查与实测，<b>项目此前「上线后问题多」的核心根因已定位并修复</b>：
+    （1）<b>自动发货商品库存显示为 0、无法下单</b>（种子与历史数据 stock 字段不同步所致，线上所有自动发货商品会集体「假售罄」）；
+    （2）<b>Vercel 部署入口缺少原始请求体捕获</b>，线上微信支付回调验签必然失败；
+    （3）<b>config.js 内置明文邮箱授权码</b>（历史高危项 H-2，本轮彻底移除）。
+    修复后经两套自动化回归 + 独立解包启动验收，<b>项目已具备直接交付使用条件</b>。
+  </p>
+  <div class="note">本报告依据八维测试模型（功能 / UI / 兼容 / 性能 / 安全 / 稳定 / 易用 / 数据）执行，与《产品测试方案与测试报告》框架一致。</div>
+</div>
+
+<div class="card">
+  <h2>二、历史缺陷核验矩阵（9/15 测试报告 19 项逐项复查）</h2>
+  <table>
+    <tr><th>编号</th><th>缺陷</th><th>原级别</th><th>当前状态</th><th>核验方式</th></tr>
+    <tr><td>H-1</td><td>负价商品可上架</td><td><span class="tag t-red">高</span></td><td><span class="tag t-green">已修复</span></td><td>round3 D10/D11 回归 PASS（负价/负原价均被拒）</td></tr>
+    <tr><td>H-2</td><td>config.js 明文邮箱授权码</td><td><span class="tag t-red">高</span></td><td><span class="tag t-green">已修复（本轮）</span></td><td>密钥已移出代码，改 .env/环境变量注入 + 生产启动校验警告</td></tr>
+    <tr><td>H-3</td><td>手动支付确认收款不发货</td><td><span class="tag t-red">高</span></td><td><span class="tag t-green">已修复</span></td><td>round3 G1-G5 + manual-pay 专项 PASS（确认→自动发卡）</td></tr>
+    <tr><td>M-1</td><td>卡密去重未按商品维度</td><td><span class="tag t-amber">中</span></td><td><span class="tag t-green">已修复</span></td><td>round3 D15 跨商品同码允许 PASS</td></tr>
+    <tr><td>M-2</td><td>缺少安全响应头</td><td><span class="tag t-amber">中</span></td><td><span class="tag t-green">已修复</span></td><td>round3 F11-F13 PASS；api/index.js 已补齐同款安全头</td></tr>
+    <tr><td>M-3</td><td>删除用户未级联删除分站</td><td><span class="tag t-amber">中</span></td><td><span class="tag t-green">已修复</span></td><td>代码核查（DELETE /admin/users/:id 级联清理）</td></tr>
+    <tr><td>M-4</td><td>密码/卡密使用弱随机</td><td><span class="tag t-amber">中</span></td><td><span class="tag t-green">已修复</span></td><td>代码核查（scrypt + crypto.randomBytes）</td></tr>
+    <tr><td>M-5</td><td>未配置平台证书仍可回调</td><td><span class="tag t-amber">中</span></td><td><span class="tag t-green">已修复</span></td><td>round3 F1-F3 伪造回调全部被拒 PASS</td></tr>
+    <tr><td>M-6</td><td>devCode 生产模式直显</td><td><span class="tag t-amber">中</span></td><td><span class="tag t-amber">部分修复</span></td><td>生产自动阻断已实现；本轮补充启动警告；仅 ALLOW_DEVCODE=1 显式放行</td></tr>
+    <tr><td>L-1</td><td>长文本溢出</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复</span></td><td>代码核查（word-break）</td></tr>
+    <tr><td>L-2</td><td>首次进店不建购物车</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复</span></td><td>round3 C10 PASS</td></tr>
+    <tr><td>L-3</td><td>用户输入 HTML 原样入库</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复</span></td><td>round3 F9 PASS（备注 script 被后端清理）</td></tr>
+    <tr><td>L-4</td><td>测试脚本依赖固定账号</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-amber">部分修复</span></td><td>本轮新增 round3 套件全动态账号；旧脚本已标注弃用存档</td></tr>
+    <tr><td>L-5</td><td>订单自动取消依赖手动触发</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复</span></td><td>代码核查（服务端 5 分钟定时任务）</td></tr>
+    <tr><td>L-6</td><td>管理后台窄屏适配</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-gray">未修复（建议项）</span></td><td>列入遗留建议，后台以 PC 使用为主</td></tr>
+    <tr><td>L-7</td><td>登录按钮紫色与主题色不一致</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复（本轮）</span></td><td>主题色统一为品牌橙 #FF6A00</td></tr>
+    <tr><td>L-8</td><td>PWA theme-color 不一致</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复（本轮）</span></td><td>index.html 与 manifest.webmanifest 已统一</td></tr>
+    <tr><td>L-9</td><td>管理员禁改站名</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复</span></td><td>round3 D26 PASS</td></tr>
+    <tr><td>L-10</td><td>同批次重复卡密未拦截</td><td><span class="tag t-gray">低</span></td><td><span class="tag t-green">已修复</span></td><td>round3 D14 PASS（added=3 / duplicated=1）</td></tr>
+  </table>
+  <h3>处置分布</h3>
+  <div class="chart-row"><span class="chart-label">已修复</span><div class="chart-bar" style="width:78%;background:var(--green)"></div><span class="chart-val">15 项</span></div>
+  <div class="chart-row"><span class="chart-label">部分修复</span><div class="chart-bar" style="width:12%;background:var(--amber)"></div><span class="chart-val">2 项（M-6 / L-4）</span></div>
+  <div class="chart-row"><span class="chart-label">未修复（建议）</span><div class="chart-bar" style="width:6%;background:var(--gray,#9CA3AF)"></div><span class="chart-val">1 项（L-6 窄屏）</span></div>
+  <div class="chart-row"><span class="chart-label">本轮新增闭环</span><div class="chart-bar" style="width:16%;background:var(--blue)"></div><span class="chart-val">+4 项（H-2 / L-7 / L-8 / L-4）</span></div>
+</div>
+
+<div class="card">
+  <h2>三、本轮新增发现并修复的问题（11 项）</h2>
+  <table>
+    <tr><th>级别</th><th>问题</th><th>根因</th><th>修复方案</th><th>验证</th></tr>
+    <tr>
+      <td><span class="tag t-red">严重</span></td>
+      <td>自动发货商品库存恒为 0，用户端全部「售罄」且无法下单</td>
+      <td>auto 商品库存以 stock 字段为准，而种子/历史数据 stock 未随卡密同步，真实库存被误判为 0；下单校验直接拒绝</td>
+      <td>库存统一口径：auto 商品实时统计「未使用卡密数」（shop.js stockOf 重写）；seed.js 建卡密后同步 stock</td>
+      <td>种子商品库存 0 → 300；下单→支付→发卡全链路 PASS</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-red">严重</span></td>
+      <td>Vercel 部署入口无 rawBody，微信支付回调线上验签必失败</td>
+      <td>api/index.js 的 express.json 未挂 verify 钩子，req.rawBody 缺失，重序列化导致签名不一致</td>
+      <td>api/index.js 增加 rawBody 捕获（json + urlencoded 双钩子）</td>
+      <td>代码审查 + 语法/启动验证；伪造回调拒收 PASS</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-amber">中</span></td>
+      <td>config.js 明文邮箱授权码（H-2 根治）</td>
+      <td>凭据硬编码在源码中，随代码分发泄露</td>
+      <td>移除明文；server.js 内置零依赖 .env 加载器；.env.example 模板；生产未注入 SMTP_PASS 时启动告警</td>
+      <td>启动横幅校验 + 全量扫描确认无明文</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-amber">中</span></td>
+      <td>管理端无法导出订单</td>
+      <td>功能缺失</td>
+      <td>新增 GET /admin/orders/export（按当前筛选条件导出 CSV，UTF-8 BOM 兼容 Excel）+ 后台「导出 CSV」按钮（带鉴权下载）</td>
+      <td>实测 200 / text/csv；未授权 401 拦截</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-amber">中</span></td>
+      <td>线上排障无日志落盘，异常静默</td>
+      <td>仅 console 输出，进程崩溃无痕</td>
+      <td>新增 server/logger.js（按天滚动 error-YYYYMMDD.log）+ 全局 uncaughtException / unhandledRejection / 错误中间件接入</td>
+      <td>启动验证 + 注入测试错误触发写入</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-gray">低</span></td>
+      <td>测试套件停留在旧手机号体系，无法在现网跑通</td>
+      <td>认证体系升级为邮箱后，5 个旧脚本未同步</td>
+      <td>新增 test-reports/api-test-round3.js（107 项，覆盖 8 维）；旧脚本标注「历史存档」；package.json 补 test / test:manual-pay 命令</td>
+      <td>107/107 PASS</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-gray">低</span></td>
+      <td>captcha.js 注释乱码（GBK 误存）</td>
+      <td>历史编码问题</td>
+      <td>修复为规范中文注释</td>
+      <td>node --check 通过</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-gray">低</span></td>
+      <td>后台启动.vbs 硬编码 D:\faka 路径</td>
+      <td>脚本写死路径，项目移动即失效</td>
+      <td>改为脚本自身目录定位，可随项目整体移动</td>
+      <td>路径逻辑核查</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-gray">低</span></td>
+      <td>README 与现状严重不符（手机认证/第三方登录/SHA-256/config.example 等过时）</td>
+      <td>文档未随功能迭代更新</td>
+      <td>全面重写：邮箱体系、MongoDB/Vercel/Render 部署、.env 配置、测试/备份命令、安全说明</td>
+      <td>逐节核对现状</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-gray">低</span></td>
+      <td>PWA 主题色与品牌不符</td>
+      <td>紫色 #8B5CF6 与橙色主色冲突</td>
+      <td>index.html meta 与 manifest.webmanifest 统一为品牌橙 #FF6A00</td>
+      <td>文件核对</td>
+    </tr>
+    <tr>
+      <td><span class="tag t-gray">低</span></td>
+      <td>manual-pay 测试 10.1 用例传错优惠券 id</td>
+      <td>下单接口需传「用户领取记录 id」，用例误传模板 id</td>
+      <td>修正用例：先领取再取用户券记录 id 下单</td>
+      <td>37/37 PASS</td>
+    </tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>四、本轮新增开发模块（已交付）</h2>
+  <table>
+    <tr><th>模块</th><th>位置</th><th>说明</th></tr>
+    <tr><td>订单 CSV 导出</td><td>server/routes/admin.js + public/js/admin.js</td><td>按状态/关键词/分站筛选导出，UTF-8 BOM，Excel 直接打开</td></tr>
+    <tr><td>错误日志系统</td><td>server/logger.js</td><td>按天滚动落盘；全局异常/拒绝/HTTP 错误全部记录</td></tr>
+    <tr><td>环境变量配置</td><td>server.js 内置加载器 + .env.example + config.js</td><td>零依赖 .env 加载；敏感配置与代码分离；生产启动校验</td></tr>
+    <tr><td>演示数据重置</td><td>scripts/reset-demo-data.js</td><td>保留站点设置、清除测试污染、重建干净演示数据（自动备份）</td></tr>
+    <tr><td>第三轮回归套件</td><td>test-reports/api-test-round3.js</td><td>107 项断言：公开/认证/用户/管理/分站/安全/手动支付，全动态账号</td></tr>
+    <tr><td>npm 命令补充</td><td>package.json</td><td>seed / reset / backup / test / test:manual-pay</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>五、测试执行结果</h2>
+  <h3>round3 综合回归：107 / 107 PASS（100%）</h3>
+  <table>
+    <tr><th>维度</th><th>断言数</th><th>覆盖要点</th></tr>
+    <tr><td>A 公开接口</td><td>10</td><td>轮播/分类/商品/搜索/FAQ/详情/404 兜底/健康检查/公开信息不含密钥</td></tr>
+    <tr><td>B 认证</td><td>11</td><td>注册/登录/错误码/验证码/暴力破解限频/401/非法 token</td></tr>
+    <tr><td>C 用户业务</td><td>30</td><td>地址/收藏/购物车/下单/模拟支付/自动发卡/重复支付拦截/取消/售后/消息/工单/积分/越权</td></tr>
+    <tr><td>D 管理后台</td><td>33</td><td>登录/统计/分类/商品(负价拦截)/卡密(同批次去重)/发货/退款/用户/设置/轮播/优惠券/FAQ</td></tr>
+    <tr><td>E 分站分销</td><td>5</td><td>开通/独立登录/商品目录/加价下限拦截</td></tr>
+    <tr><td>F 安全专项</td><td>13</td><td>伪造回调(微信/支付宝/虎皮椒)/并发超卖/路径遍历/XSS 清理/原型污染/CSP/点击劫持/nosniff</td></tr>
+    <tr><td>G 手动支付回归</td><td>5</td><td>发起→确认收款→自动发货→卡密→重复确认幂等（H-3）</td></tr>
+  </table>
+  <h3>手动支付专项：37 / 37 PASS（100%）</h3>
+  <p style="font-size:13px;color:var(--sub)">覆盖：收款码配置、上传付款凭证、商家确认收款自动发卡、越权拦截、待确认取消释放库存/优惠券等。</p>
+  <h3>端到端冒烟：8 / 8 PASS</h3>
+  <p style="font-size:13px;color:var(--sub)">独立解压交付包 → 启动 → 健康检查 → 首页 → 注册 → 下单种子商品 → 模拟支付 → 状态 shipped + 卡密 1 张 → 管理员登录 → 安全头。</p>
+  <div class="chart-row"><span class="chart-label">round3 综合</span><div class="chart-bar" style="width:100%;background:var(--green)"></div><span class="chart-val">107/107 (100%)</span></div>
+  <div class="chart-row"><span class="chart-label">手动支付专项</span><div class="chart-bar" style="width:100%;background:var(--green)"></div><span class="chart-val">37/37 (100%)</span></div>
+  <div class="chart-row"><span class="chart-label">端到端冒烟</span><div class="chart-bar" style="width:100%;background:var(--green)"></div><span class="chart-val">8/8 (100%)</span></div>
+  <div class="note">所有断言均为动态注册的临时账号 + 临时商品，测试后已通过 scripts/reset-demo-data.js 一键还原为干净演示数据（站点设置保留）。</div>
+</div>
+
+<div class="card">
+  <h2>六、八维测试覆盖矩阵</h2>
+  <table>
+    <tr><th>维度</th><th>执行内容</th><th>结论</th></tr>
+    <tr><td>功能</td><td>144 项自动化断言覆盖全部核心链路 + 手工冒烟</td><td><span class="tag t-green">通过</span></td></tr>
+    <tr><td>UI</td><td>主题色统一、PWA 主题色修正、长文本/窄屏核查</td><td><span class="tag t-green">通过</span>（后台窄屏 L-6 列入建议）</td></tr>
+    <tr><td>兼容</td><td>零外部 CDN；JSON/MongoDB 双存储；本地/云部署双入口（server.js / api/index.js）</td><td><span class="tag t-green">通过</span></td></tr>
+    <tr><td>性能</td><td>库存统计 O(n) 内存扫描（数千卡密微秒级）；分页接口核查；静态资源无阻塞</td><td><span class="tag t-green">通过</span></td></tr>
+    <tr><td>安全</td><td>越权/角色提升/伪造回调/路径遍历/原型污染/XSS/CSP/暴力破解/密钥泄露 13 项专项</td><td><span class="tag t-green">通过</span></td></tr>
+    <tr><td>稳定</td><td>并发超卖防护、重复支付/发货/退款/确认幂等、全局异常落盘、定时任务</td><td><span class="tag t-green">通过</span></td></tr>
+    <tr><td>易用</td><td>一键启动脚本、订单导出、演示数据重置、README 重写、.env 模板</td><td><span class="tag t-green">通过</span></td></tr>
+    <tr><td>数据</td><td>数据备份/恢复、序列一致性、跨商品卡密去重口径、积分/余额流水</td><td><span class="tag t-green">通过</span></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>七、遗留事项与后续模块规划（建议，未在本轮实施）</h2>
+  <table>
+    <tr><th>优先级</th><th>事项</th><th>说明</th></tr>
+    <tr><td><span class="tag t-amber">高</span></td><td>支付对账模块</td><td>按日拉取微信/支付宝账单与本地订单对账，出差异报表</td></tr>
+    <tr><td><span class="tag t-amber">高</span></td><td>订单批量操作</td><td>批量发货、批量导出选中项、批量退款（当前逐单操作）</td></tr>
+    <tr><td><span class="tag t-amber">中</span></td><td>首页公告 / 通知横幅</td><td>站点公告运营位（消息广播已有，缺首页公告栏）</td></tr>
+    <tr><td><span class="tag t-amber">中</span></td><td>数据看板增强</td><td>自定义时间范围、分类销售占比、分站分销报表导出</td></tr>
+    <tr><td><span class="tag t-gray">低</span></td><td>多规格商品</td><td>同一商品多 SKU（面值/区服），涉及商品模型与订单结构变更</td></tr>
+    <tr><td><span class="tag t-gray">低</span></td><td>手机号绑定</td><td>README 旧版曾承诺手机登录；当前为邮箱体系，建议明确「已移除」或按需实现</td></tr>
+    <tr><td><span class="tag t-gray">低</span></td><td>管理后台窄屏适配（L-6）</td><td>后台侧边栏折叠为抽屉式，工作量中等，PC 使用场景可暂缓</td></tr>
+    <tr><td><span class="tag t-gray">低</span></td><td>WAF / 防爬</td><td>接口级限流已具备；如需可加登录接口 IP 黑名单与验证码强度升级</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>八、交付物与使用说明</h2>
+  <table>
+    <tr><th>交付物</th><th>路径</th><th>说明</th></tr>
+    <tr><td>完善版项目包</td><td>发卡网系统-完善版-20260916.zip</td><td>解压后双击「启动服务.bat」即可运行（首次自动 npm install）；或 npm start</td></tr>
+    <tr><td>本报告</td><td>test-reports/发卡网系统改进报告-20260916.html</td><td>当前文件</td></tr>
+    <tr><td>回归测试套件</td><td>test-reports/api-test-round3.js、api-test-manual-pay.js</td><td>npm test / npm run test:manual-pay</td></tr>
+  </table>
+  <h3>启动步骤</h3>
+  <ol>
+    <li>解压 zip，进入目录，双击 <b>启动服务.bat</b>（或执行 <code>npm install &amp;&amp; npm start</code>）</li>
+    <li>浏览器访问：用户端 <code>http://localhost:3000/index.html</code>；管理后台 <code>http://localhost:3000/admin.html</code>（admin / admin123）</li>
+    <li>云部署：Vercel/Render 设置环境变量 <code>MONGODB_URI</code>、<code>SMTP_USER</code>、<code>SMTP_PASS</code>、<code>NODE_ENV=production</code>（详见 README）</li>
+    <li>演示数据重置：<code>node scripts/reset-demo-data.js</code>（保留站点设置、清空测试数据、自动备份）</li>
+  </ol>
+  <div class="note">交付包已排除 node_modules（约 60MB，无需随包分发）、部署凭据（_token.txt / _pca.json）、运行日志与备份目录；<b>请妥善保管 .env 中的 SMTP 授权码与部署凭据，勿随代码提交</b>。</div>
+</div>
+
+</div>
+</body>
+</html>

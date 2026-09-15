@@ -773,12 +773,12 @@ async function vHome() {
           <div class="search-bar" data-goto="#/search">${icon('search', 18)}<span>搜索商品，如：话费充值</span></div>
         </div>
         <div class="px-12">
-          <div class="swiper">
+          ${banners.length ? `<div class="swiper">
             <div class="swiper-track">
               ${banners.map((b) => `<div class="swiper-slide" data-banner='${JSON.stringify({ linkType: b.linkType, link: b.link }).replace(/'/g, '&#39;')}'><img src="${esc(b.image)}" alt="${esc(b.title)}"></div>`).join('')}
             </div>
             <div class="swiper-dots">${banners.map((_, i) => `<span class="dot ${i === 0 ? 'active' : ''}"></span>`).join('')}</div>
-          </div>
+          </div>` : ''}
         </div>
         <div class="card" style="margin:10px 12px 0">
           <div class="quick-grid">

@@ -142,6 +142,7 @@ function build() {
         status: 'unused', orderId: 0, usedAt: 0, createdAt: now
       });
     }
+    p.stock = n; // 同步 auto 商品真实库存（统一库存池口径：未使用卡密数），避免用户端误判售罄
   }
 
   /* ---------- 轮播图 ---------- */
@@ -164,7 +165,7 @@ function build() {
     { id: id('faqs'), category: '发货问题', question: '卡密无法使用或已被使用怎么办？', answer: '请先在订单详情中核对卡密是否复制完整。若仍无法使用，请在「订单详情 → 申请售后」中提交退货退款申请，并上传凭证图片，管理员会尽快处理。', sort: 2 },
     { id: id('faqs'), category: '售后问题', question: '支持退款吗？如何申请？', answer: '支持。在订单详情页点击「申请售后」，选择「仅退款」或「退货退款」，填写原因并上传凭证后提交，管理员会在 24 小时内处理。', sort: 3 },
     { id: id('faqs'), category: '售后问题', question: '退款后多久到账？', answer: '售后审核通过后，款项将原路退回（模拟环境即时到账）。到账时间取决于支付渠道。', sort: 4 },
-    { id: id('faqs'), category: '账户问题', question: '忘记密码怎么办？', answer: '在登录页点击「找回密码」，通过手机号验证码验证后即可重置密码。', sort: 5 },
+    { id: id('faqs'), category: '账户问题', question: '忘记密码怎么办？', answer: '在登录页点击「找回密码」，通过邮箱验证码验证后即可重置密码。', sort: 5 },
     { id: id('faqs'), category: '优惠券', question: '优惠券怎么领取和使用？', answer: '进入「我的 → 优惠券 → 领券中心」领取优惠券，结算时勾选符合条件的优惠券即可抵扣。', sort: 6 },
     { id: id('faqs'), category: '积分会员', question: '积分如何获得？会员等级怎么提升？', answer: '购物实付金额按 1 元 = 1 积分累计，注册赠送 50 积分。累计消费达到 500/2000/5000/10000 元分别升级白银/黄金/钻石/至尊会员。', sort: 7 },
     { id: id('faqs'), category: '其他', question: '联系客服的方式有哪些？', answer: '您可通过「客服中心」在线对话（支持自动回复与人工转接）、提交工单，或拨打客服电话、添加客服微信/QQ 联系我们。', sort: 8 }

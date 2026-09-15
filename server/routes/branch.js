@@ -12,6 +12,7 @@ const auth = require('../auth');
 const util = require('../util');
 const captcha = require('../captcha');
 const branchSign = require('../branch-sign');
+const crypto = require('crypto');
 
 /** 分站登录（支持分站账号或用户注册账号，图形验证码防人机，5 次错误拦截 60 秒） */
 const branchRate = new Map();
@@ -422,7 +423,114 @@ router.get('/balance-logs', auth.requireBranchOrUser, (req, res) => {
   res.json(util.ok({ ...util.paginate(list, page, size), balance: Math.round((b.balance || 0) * 100) / 100 }));
 });
 
+/* =============== 分站收款方式绑定（邮箱验证码） =============== */
+
+/** 分站绑定邮箱：优先 owner 用户邮箱，其次分站账号本身为邮箱 */
+function branchPayEmail(b, d) {
+  if (b.ownerId > 0) {
+    const u = d.users.find((x) => x.id === b.ownerId);
+    if (u && u.email) return String(u.email).toLowerCase();
+  }
+  const un = String(b.username || '').trim();
+  return /^[\w.+-]+@[\w-]+(\.[\w-]+)+$/.test(un) ? un.toLowerCase() : '';
+}
+
+/** 收款账号打码展示（前3后4，中间*） */
+function maskAccount(acc) {
+  const s = String(acc || '');
+  if (s.length <= 7) return s.slice(0, 2) + '***';
+  return s.slice(0, 3) + '****' + s.slice(-4);
+}
+
+/** 我的收款方式（脱敏返回） */
+router.get('/pay-accounts', auth.requireBranchOrUser, (req, res) => {
+  const b = req.branch;
+  const pa = b.payAccounts || {};
+  const out = {};
+  if (pa.alipay) out.alipay = { nickname: pa.alipay.nickname || '', account: maskAccount(pa.alipay.account || ''), updatedAt: pa.alipay.updatedAt || 0 };
+  if (pa.wechat) out.wechat = { nickname: pa.wechat.nickname || '', qrcode: pa.wechat.qrcode || '', updatedAt: pa.wechat.updatedAt || 0 };
+  if (pa.bank) out.bank = { holder: pa.bank.holder || '', bankName: pa.bank.bankName || '', account: maskAccount(pa.bank.account || ''), updatedAt: pa.bank.updatedAt || 0 };
+  res.json(util.ok({ payAccounts: out, email: branchPayEmail(b, db.load()) }));
+});
+
+/** 绑定/更新收款方式（需邮箱验证码：发送到分站账号邮箱，scene=pay） */
+router.post('/pay-accounts', auth.requireBranchOrUser, (req, res) => {
+  const b = req.branch;
+  const d = db.load();
+  const { type, email, emailCode } = req.body || {};
+  const em = branchPayEmail(b, d);
+  if (!em) return res.json(util.fail('当前分站账号不是邮箱且未绑定用户，无法进行邮箱验证，请联系管理员绑定账号'));
+  const reqEmail = String(email || '').trim().toLowerCase();
+  if (reqEmail !== em) return res.json(util.fail('请使用分站账号邮箱 ' + em + ' 接收验证码'));
+  // 邮箱验证码校验（scene=pay，一次性消费）
+  const codeStr = String(emailCode || '').trim();
+  const recIdx = (d.emailCodes || []).findIndex((x) => x.email === em && x.scene === 'pay' && x.code === codeStr);
+  if (recIdx < 0 || !d.emailCodes[recIdx] || d.emailCodes[recIdx].expiresAt < util.now()) {
+    return res.json(util.fail('邮箱验证码错误或已过期'));
+  }
+  d.emailCodes.splice(recIdx, 1); // 用后即焚
+  if (!['alipay', 'wechat', 'bank'].includes(type)) return res.json(util.fail('收款方式不正确'));
+
+  const pa = b.payAccounts || (b.payAccounts = {});
+  const now = util.now();
+  const body = req.body || {};
+  if (type === 'alipay') {
+    const nickname = String(body.nickname || '').trim();
+    const account = String(body.account || '').trim();
+    if (!nickname) return res.json(util.fail('请填写支付宝昵称'));
+    if (account.length < 6 || !/^[0-9A-Za-z@.\-_]+$/.test(account)) return res.json(util.fail('支付宝账号格式不正确（6位以上，支持手机号/邮箱/账号）'));
+    pa.alipay = { nickname, account, updatedAt: now };
+  } else if (type === 'wechat') {
+    const nickname = String(body.nickname || '').trim();
+    const qrcode = String(body.qrcode || '').trim();
+    if (!nickname) return res.json(util.fail('请填写微信昵称'));
+    if (!qrcode) return res.json(util.fail('请上传微信收款码图片'));
+    pa.wechat = { nickname, qrcode, updatedAt: now };
+  } else {
+    const holder = String(body.holder || '').trim();
+    const bankName = String(body.bankName || '').trim();
+    const account = String(body.account || '').trim();
+    if (!holder) return res.json(util.fail('请填写持卡人姓名'));
+    if (bankName.length < 4) return res.json(util.fail('请填写完整的开户行（如：中国工商银行XX分行XX支行）'));
+    if (!/^\d{12,24}$/.test(account)) return res.json(util.fail('银行卡号格式不正确（12-24位数字）'));
+    pa.bank = { holder, bankName, account, updatedAt: now };
+  }
+  db.save();
+  db.flushNow();
+  res.json(util.ok({ msg: '收款方式已绑定' }));
+});
+
+/** 解绑收款方式 */
+router.delete('/pay-accounts/:type', auth.requireBranchOrUser, (req, res) => {
+  const b = req.branch;
+  const type = String(req.params.type || '');
+  if (!['alipay', 'wechat', 'bank'].includes(type)) return res.json(util.fail('收款方式不正确'));
+  if (!b.payAccounts || !b.payAccounts[type]) return res.json(util.fail('该收款方式未绑定'));
+  delete b.payAccounts[type];
+  db.save();
+  db.flushNow();
+  res.json(util.ok({ msg: '已解绑' }));
+});
+
 /* =============== 分站提现 =============== */
+
+/** 分站上传图片（收款码等；魔数嗅探防存储型 XSS） */
+router.post('/upload', auth.requireBranchOrUser, (req, res) => {
+  const { data } = req.body || {};
+  if (!data) return res.json(util.fail('缺少图片数据'));
+  const buf = Buffer.from(data, 'base64');
+  if (buf.length > 3 * 1024 * 1024) return res.json(util.fail('图片不能超过 3MB'));
+  const real = util.detectImageType(buf);
+  if (!real) return res.json(util.fail('图片内容与格式不符，仅支持 jpg/png/gif/webp'));
+  const fs = require('fs');
+  const path = require('path');
+  const uploadDir = path.join(__dirname, '..', '..', 'uploads');
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+  const name = 'b_' + Date.now() + '_' + crypto.randomInt(1000000, 9999999) + '.' + real;
+  fs.writeFileSync(path.join(uploadDir, name), buf);
+  const url = '/uploads/' + name;
+  res.json(util.ok({ url }));
+});
 
 /** 我的提现记录 */
 router.get('/withdrawals', auth.requireBranchOrUser, (req, res) => {
@@ -434,14 +542,20 @@ router.get('/withdrawals', auth.requireBranchOrUser, (req, res) => {
   res.json(util.ok(list));
 });
 
-/** 申请提现 */
+/** 申请提现（使用已绑定的收款方式：alipay / wechat / bank） */
 router.post('/withdrawals', auth.requireBranchOrUser, (req, res) => {
   const b = req.branch;
   const amount = Math.round(Number(req.body && req.body.amount) * 100) / 100;
-  const account = String((req.body && req.body.account) || '').trim();
+  const method = String((req.body && req.body.method) || '').trim();
   if (!isFinite(amount) || amount <= 0) return res.json(util.fail('请输入正确的提现金额'));
   if (amount < 1) return res.json(util.fail('单次提现金额不能低于 ¥1'));
-  if (account.length < 4 || account.length > 100) return res.json(util.fail('请填写收款方式（支付宝/银行卡等）与账号'));
+  if (!['alipay', 'wechat', 'bank'].includes(method)) return res.json(util.fail('请选择收款方式（支付宝/微信/银行卡）'));
+  const pa = (b.payAccounts || {})[method];
+  if (!pa) return res.json(util.fail('请先在「收款方式」中绑定 ' + (method === 'alipay' ? '支付宝' : method === 'wechat' ? '微信' : '银行卡') + ' 收款信息'));
+  // 收款信息快照（提现记录可见）
+  const account = method === 'alipay' ? '支付宝（' + pa.nickname + '）：' + pa.account
+    : method === 'wechat' ? '微信收款码（' + pa.nickname + '）'
+    : '银行卡（' + (pa.holder || '') + '）：' + (pa.bankName || '') + ' ' + pa.account;
   const d = db.load();
   // 冻结金额 = 处理中提现
   const frozen = d.withdrawals
@@ -452,7 +566,8 @@ router.post('/withdrawals', auth.requireBranchOrUser, (req, res) => {
   const w = {
     id: util.nextId('withdrawals'),
     branchId: b.id, branchName: b.name, branchUsername: b.username,
-    amount, account, status: 'pending', reply: '',
+    amount, account, method, status: 'pending', reply: '',
+    qrcode: method === 'wechat' ? pa.qrcode : '',
     createdAt: util.now(), handledAt: 0, handledBy: ''
   };
   d.withdrawals.push(w);

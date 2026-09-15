@@ -1,7 +1,6 @@
-/**
- * server/captcha.js - 图形验证码共享模块（注册/登录/找回/分站登录防人机）
- * 内存存储：5 分钟有效、用后即焚；本地演示环境返回 devCode 便于测试。
- */
+﻿/**
+ * server/captcha.js - 图形验证码共享模块（注册/登录/找回/分站登录防机器人）
+ * 内存存储：5 分钟有效、用后即焚；本地演示环境返回 devCode 便于测试。 */
 const util = require('./util');
 
 const captchas = new Map();
@@ -31,7 +30,7 @@ function buildCaptchaSvg(code) {
   return s.join('');
 }
 
-/** 生成一个图形验证码，返回 { token, svg, devCode } */
+/** 鐢熸垚涓€涓浘褰㈤獙璇佺爜锛岃繑鍥?{ token, svg, devCode } */
 function getCaptcha() {
   for (const [k, v] of captchas) if (v.expiresAt < Date.now()) captchas.delete(k);
   let code = '';
@@ -39,12 +38,12 @@ function getCaptcha() {
   const token = util.newToken();
   captchas.set(token, { code: code.toLowerCase(), expiresAt: Date.now() + CAPTCHA_TTL });
   const data = { token, svg: buildCaptchaSvg(code) };
-  // 生产环境不返回 devCode（防人机验证码明文泄露）
-  if (!util.isProd()) data.devCode = code.toLowerCase();
+  // 鐢熶骇鐜涓嶈繑鍥?devCode锛堥槻浜烘満楠岃瘉鐮佹槑鏂囨硠闇诧級
+  if (util.allowDevCode()) data.devCode = code.toLowerCase();
   return data;
 }
 
-/** 校验图形验证码（用后即焚） */
+/** 鏍￠獙鍥惧舰楠岃瘉鐮侊紙鐢ㄥ悗鍗崇剼锛?*/
 function verifyCaptcha(token, code) {
   if (!token || !code) return false;
   const rec = captchas.get(token);

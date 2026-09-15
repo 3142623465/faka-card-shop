@@ -1,362 +1,191 @@
-# 发卡网系统（Card-Shop）
+# 发卡网系统（324云系统 / Card-Shop）
 
-一套**可本地部署、开箱即用**的发卡网系统：完整用户端（移动端风格 SPA）+ 完整后台管理端，Node.js + Express + 原生 JS + JSON 文件数据库，零构建、零外部 CDN、可离线运行。已内置 **PWA（手机可直接安装为 APP）**，并附 APP 打包指引。
+一套**可本地部署、开箱即用**的发卡网系统：完整用户端（移动端风格 SPA）+ 完整管理后台 + 分站分销后台。技术栈：Node.js + Express + 原生 JS 前端，支持 **本地 JSON 文件**与 **MongoDB** 双存储，零构建、零外部 CDN、可离线运行。内置 PWA（手机可直接安装为 APP）。
 
 ---
 
 ## 一、功能清单
 
 ### 用户端（手机/PC 浏览器访问）
-- **启动引导**：首次安装 3 页引导页 → 品牌启动页（2 秒自动进入首页）
-- **账号体系**：手机验证码登录（本地开发直接显示验证码）、密码登录、微信/QQ 一键登录（首次强制绑定手机）、注册、双渠道找回密码（手机验证码 / QQ 邮箱验证链接）、**异地登录检测与安全提醒**、改密、注销
-- **首页**：轮播 Banner（可跳转）、4×2 快捷宫格、全局搜索（历史/热搜）、热门推荐瀑布流
-- **分类/商品**：两级分类（左分栏）、综合/销量/价格/新品筛选、网格/列表切换、商品详情（图轮播/库存/收藏/**一键分享**）
-- **交易链路**：购物车（勾选/批量/左滑删除/实时合计）→ 结算（地址/优惠券/费用明细）→ 微信/支付宝模拟支付 → **自动发货卡密实时展示 + 一键复制** → 订单管理（6 状态筛选/取消/确认收货/售后/物流）
-- **个人中心**：会员等级（5 级成长体系）、积分（消费返利/兑换优惠券/明细）、收藏、地址、资料编辑、头像上传
-- **客服中心**：在线对话（关键词智能自动回复 + 3 秒轮询接收客服消息）、工单系统、FAQ 分类搜索
-- **分站/分销**：分三级（超级管理员 → 专业分站 → 普通分站），前端可直接开通/升级分站（专业/普通，价格由上级设置），注册账号即分站账号；分站可上架/下架总站商品（售价不得低于上级同款），分站管理内嵌于个人中心，另有独立分站后台 /branch.html
+- **账号体系**：邮箱验证码注册/登录、邮箱+密码登录、邮箱验证码找回密码、图形验证码防机器人、60 秒发送限频、异地登录检测与安全提醒、改密、注销
+- **首页**：轮播 Banner（可跳转分类）、快捷宫格、全局搜索（历史/热搜）、热门推荐瀑布流
+- **分类/商品**：两级分类、综合/销量/价格/新品筛选、商品详情（图轮播/库存/收藏/分享）
+- **交易链路**：购物车（勾选/批量/实时合计）→ 结算（地址/优惠券/费用明细）→ 支付（微信/支付宝/虎皮椒真实渠道 + 模拟支付 + **手动转账收款**）→ **自动发货卡密实时展示 + 一键复制** → 订单管理（6 状态/取消/确认收货/售后/物流）
+- **手动转账支付**：后台开启后，买家可选「手动转账」→ 扫码付款到商家个人微信/支付宝 → 上传付款凭证 → 商家确认收款 → 自动发卡（无支付接口也能卖货）
+- **个人中心**：会员等级（5 级成长体系）、积分（消费返利/兑换余额或优惠券/明细）、收藏、地址、资料编辑、头像上传
+- **客服中心**：在线对话（关键词自动回复 + 轮询）、工单系统、FAQ 分类搜索
+- **分站/分销**：三级架构（总站 → 专业分站 → 普通分站），用户可自助开通/升级分站（余额扣费，价格由上级设置），分站可上架总站商品（售价不得低于上级同款价，差价计入分站余额），独立分站后台 `/branch.html`
 - **消息通知**：系统/订单/活动分类、未读红点、全部已读
-- **系统设置**：账号安全（改密/注销）、推送开关、深色模式、清缓存、关于（协议/备案/联系方式）
-- **APP 化**：PWA 支持，手机浏览器打开后可「添加到主屏幕 / 安装应用」，全屏独立运行、支持离线缓存（详见「八、APP 部署」）
+- **APP 化**：PWA 支持，手机浏览器打开后「添加到主屏幕 / 安装应用」
 
 ### 后台管理端（PC 浏览器访问）
-- **数据概览**：今日/累计销售额、订单数、用户数、库存卡密、待办、近 7 天趋势图、热销 TOP5、低库存预警
-- **商品管理**：CRUD、上下架、批量加卡密（文本多行 / JSON / 自动生成）、卡密列表（未用/已用/全部）
-- **分类 / 轮播 / 优惠券 / FAQ**：完整 CRUD，优惠券支持满减、折扣、积分兑换
-- **订单管理**：6 状态筛选、搜索、详情（含卡密）、手动发货、强制退款（自动恢复卡密/库存/返还优惠券/扣回积分）
+- **数据概览**：今日/累计销售额、订单数、用户数、库存卡密、待办、近 7 天趋势、热销 TOP5、低库存预警
+- **商品管理**：CRUD、上下架、批量加卡密（文本多行/Excel/CSV 导入/自动生成，同批次自动去重）、卡密列表（未用/已用/全部）
+- **分类 / 轮播 / 优惠券 / FAQ**：完整 CRUD（优惠券支持满减、折扣、积分兑换、时间倒置校验）
+- **订单管理**：6 状态筛选、搜索、详情（含卡密）、手动发货、确认收款、强制退款（自动恢复卡密/库存/返还优惠券）、**一键导出 CSV**（按筛选条件）
 - **售后管理**：同意退款 / 驳回（复用退款逻辑）
-- **用户管理**：搜索、禁用踢下线、调积分、改昵称
-- **分站管理**：开通/禁用分站、设置专业/普通分站开通价格、查看下级分站、分站分销统计
-- **客服**：在线对话（实时轮询回复）、工单处理、消息广播（全员/指定用户）
-- **系统设置**：站点信息、支付开关、积分比例、自动取消/确认参数、管理员改密
+- **用户管理**：搜索、禁用踢下线、调积分、调余额、改密码
+- **分站管理**：开通/禁用分站、设置分站开通价格、查看下级分站、分销统计
+- **客服**：在线对话、工单处理、消息广播
+- **系统设置**：站点信息、支付开关与密钥、积分比例、自动取消/确认参数、管理员改密
 
 ---
 
-## 二、部署方法（本地）
+## 二、本地部署
 
 ### 环境要求
-- [Node.js](https://nodejs.org/) ≥ 14（推荐 16+）
-- 无需任何数据库，数据保存在 `data/db.json`（JSON 文件）
+- Node.js ≥ 16（推荐 18+）
+- 无需数据库即可运行（数据存 `data/db.json`）；云部署可选用 MongoDB
 
 ### 快速启动
 
-**Windows**：双击 `启动服务.bat`（自动安装依赖并启动）
-
-**macOS / Linux**：在项目目录执行
-
-```bash
-chmod +x start.sh && ./start.sh
-```
+**Windows**：双击 `启动服务.bat`（自动安装依赖并启动）；或双击 `后台启动.vbs`（无黑窗口后台运行）
 
 **手动方式**
-
 ```bash
-# 1. 安装依赖（只需一次）
-npm install
-
-# 2. 启动服务
-npm start
+npm install      # 安装依赖（只需一次）
+npm start        # 启动服务，默认端口 3000
 ```
 
-### 访问地址
+### 访问地址与默认账号
 
 | 入口 | 地址 |
 |---|---|
 | 用户端 | http://localhost:3000/index.html |
 | 管理后台 | http://localhost:3000/admin.html |
-| 分站后台 | http://localhost:3000/branch.html（分站管理员入口，个人中心内嵌管理同源） |
-
-> 端口可通过环境变量修改：`PORT=8080 npm start`
-
-### 默认账号
+| 分站后台 | http://localhost:3000/branch.html |
 
 | 角色 | 账号 | 密码 |
 |---|---|---|
-| 管理后台 | `admin` | `admin123` |
-| 测试用户 | `13800000000` | `123456`（含默认地址、100 积分） |
+| 管理后台 | `admin` | `admin123`（部署后请立即修改） |
+
+> 首次启动会生成演示数据（含演示账号 `demo@example.com / 123456`、16 个种子商品与 3440 张随机卡密），用于本地体验。**上线部署前必须执行 `node scripts/prepare-production.js` 清空全部演示/测试数据**（仅保留站点配置），避免假卡密对外出售。
+
+> 端口修改：`PORT=8080 npm start`
 
 ---
 
-## 三、本地验证码说明
+## 三、环境变量与敏感配置
 
-系统发短信接口在**本地环境自动降级为直显验证码**：调用「获取验证码」后，响应中的 `devCode` 字段即 6 位验证码，页面上直接填入即可（如验证码登录、注册、找回密码、绑定手机）。接入真实短信服务商后会自动切换为真实短信。
+项目通过 `.env` 文件或平台环境变量注入敏感配置（`server/config.js` 已移除一切明文密钥）。复制 `.env.example` 为 `.env` 填写：
+
+| 变量 | 说明 |
+|---|---|
+| `PORT` | 服务端口，默认 3000 |
+| `MONGODB_URI` | MongoDB 连接串；留空则使用本地 JSON 文件存储 |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | QQ 邮箱 SMTP（发验证码/找回密码邮件），授权码从 QQ 邮箱设置获取 |
+| `NODE_ENV` | 设为 `production` 后自动阻断验证码 devCode 直显 |
+| `ALLOW_DEVCODE` | 仅内部调试：生产模式显式放行 devCode（用完必须关闭） |
+
+支付密钥（微信/支付宝/虎皮椒）既可在后台「系统设置」填写，也支持环境变量注入（`WX_APPID`、`WX_PRIVATE_KEY`、`ALI_APP_ID`、`ALI_PRIVATE_KEY`、`XUNHU_APPID`、`XUNHU_APPSECRET` 等，见 `server/config.js`）。
+
+> 安全说明：`config.js`、`.env`、`_token.txt` 等均已加入 `.gitignore`，不会随代码提交；生产环境务必通过平台环境变量注入密钥（对应历史缺陷 H-2）。
 
 ---
 
-## 四、数据管理
+## 四、本地验证码说明
 
-- 数据文件：`data/db.json`（首次启动自动生成演示数据）
-- 上传图片：`uploads/` 目录（自动创建）
-- 重置为干净演示数据：停止服务后删除 `data/db.json`，或执行 `npm run seed`
-- 强制重建种子：`node server/seed.js --force`
+开发模式（未设置 `NODE_ENV=production`）下，邮箱验证码以 `devCode` 字段**直显返回**（响应中的 `devCode` 即 6 位验证码，页面自动填入即可），便于本地调试。生产模式自动阻断直显（对应缺陷 M-6）。
 
 ---
 
-## 五、项目结构
+## 五、数据管理
+
+- 数据文件：`data/db.json`（首次启动自动生成演示数据；每天首次启动自动备份到 `backups/`，保留 14 天）
+- **上线部署前清理（必须执行）**：`node scripts/prepare-production.js` —— 保留站点配置，清空商品/分类/卡密（含随机假卡密）/演示账号/优惠券/FAQ/轮播等全部业务数据，重置 id 计数器；执行前自动备份
+- **保留站点设置并重建演示数据（仅开发/演示用）**：`node scripts/reset-demo-data.js`（自动备份原数据）
+- 手动备份：`node scripts/backup-db.js`
+- 错误日志：`logs/error-YYYYMMDD.log`（自动按天滚动）
+
+---
+
+## 六、项目结构
 
 ```
 card-shop/
-├── server/                # 后端
-│   ├── server.js          # 服务入口（Express，含回调 body 解析）
-│   ├── db.js              # JSON 文件数据库（原子写、防抖落盘）
-│   ├── util.js            # 通用工具（密码/令牌/卡密生成）
-│   ├── auth.js            # 登录态中间件
-│   ├── seed.js            # 演示数据种子
-│   ├── backup-db.js        # 数据库备份（scripts/）
-│   ├── settle.js          # 支付成功结算公共模块（扣库存→自动发卡→积分/消息）
-│   ├── payments.js        # 真实支付适配器（微信 Native / 支付宝电脑网站，缺配置自动回退模拟）
-│   ├── sms.js             # 真实短信适配器（阿里云/腾讯云，缺密钥自动回退本地直显）
-│   ├── config.example.js  # 商户/短信配置样例（复制为 config.js 填写）
-│   └── routes/            # 路由
-│       ├── auth.js        # 注册/登录/找回/第三方/发送验证码
-│       ├── shop.js        # 商城浏览（游客可访问）
-│       ├── user.js        # 用户业务（购物车/订单/售后/客服…，含支付路由）
-│       ├── pay.js         # 支付回调（微信 /api/pay/notify/wechat、支付宝 /api/pay/notify/alipay）
-│       └── admin.js       # 管理后台接口
-├── public/                # 前端
-│   ├── index.html         # 用户端入口
-│   ├── admin.html         # 管理后台入口
-│   ├── manifest.webmanifest # PWA 应用清单（APP 安装配置）
-│   ├── sw.js              # PWA Service Worker（离线缓存）
-│   ├── css/               # 样式（base.css 用户端 / admin.css 后台）
-│   ├── js/                # api.js / util.js / qrcode.js（自研二维码）/ app.js / admin.js
-│   └── img/               # 本地 SVG 图标、占位图、APP 图标（icon-192/512.png）
-├── scripts/gen-assets.js  # 图片资源生成脚本
-├── data/                  # 运行时数据库（自动生成）
-├── uploads/               # 运行时上传目录（自动创建）
-└── 启动服务.bat / start.sh # 一键启动脚本
+├── api/index.js            # Vercel Serverless 入口（含 rawBody 捕获，微信回调验签依赖）
+├── server/
+│   ├── server.js           # 服务入口（.env 加载、安全响应头、自动备份、定时任务、日志）
+│   ├── db.js               # 数据层（JSON 文件 / MongoDB 双模式，防抖落盘）
+│   ├── util.js             # 工具（scrypt 密码哈希、加密安全随机卡密、HTML 过滤、分页）
+│   ├── auth.js             # 登录态中间件（user/admin/branch 三角色）
+│   ├── seed.js             # 演示数据种子（16 商品 / 23 分类 / 3440 卡密，库存已同步）
+│   ├── config.js           # 配置（仅读环境变量，无明文密钥）
+│   ├── logger.js           # 轻量日志模块（按天滚动）
+│   ├── settle.js           # 支付成功结算（扣库存→发卡→积分→消息，幂等保护）
+│   ├── payments.js         # 微信 Native / 支付宝适配器（AES-256-GCM 解密、RSA2 验签）
+│   ├── xunhu.js            # 虎皮椒支付适配器
+│   ├── sms.js / mail.js / captcha.js   # 短信/邮件/图形验证码
+│   ├── branch-sign.js      # 分站邀请/价格校验
+│   └── routes/             # auth / shop / user / admin / pay / branch
+├── public/                 # 前端（index.html / admin.html / branch.html + js/css/img + PWA）
+├── scripts/                # reset-demo-data.js / backup-db.js / 测试脚本等
+├── test-reports/           # 自动化测试脚本与测试报告（api-test-round3.js 为当前主回归套件）
+├── data/                   # 运行时数据库（自动生成，已 gitignore）
+├── uploads/                # 运行时上传目录（自动创建，已 gitignore）
+├── .env.example            # 环境变量模板（复制为 .env 填写）
+├── 启动服务.bat / 后台启动.vbs
+└── vercel.json / render.yaml  # 云部署配置
 ```
 
 ---
 
-## 六、核心 API 摘要
+## 七、核心 API 摘要
 
 接口前缀：`/api`
 
 | 模块 | 接口 |
 |---|---|
-| 认证 | `POST /auth/send-code` `/auth/register` `/auth/login` `/auth/login-code` `/auth/third-login` `/auth/bind-phone` `/auth/reset` `/auth/send-reset-email` `/auth/reset-email` |
-| 商城 | `GET /shop/banners` `/shop/categories` `/shop/products` `/shop/products/:id` `/shop/hot-keywords` `/shop/faqs` `/shop/coupons` `/shop/site` |
-| 用户 | `GET/POST/PUT /user/addresses` `GET/POST/DELETE /user/favorites/:pid` `GET/POST/PUT/DELETE /user/cart` `POST /user/coupons/claim/:couponId` `POST /user/orders` `POST /user/orders/:id/pay`（支付成功自动发卡）`POST /user/orders/:id/cancel|confirm|aftersale` `GET /user/messages` `/user/points-logs` `/user/tickets` `/user/chat` |
-| 管理 | `POST /admin/login` `GET /admin/stats` 商品/分类/卡密/订单/售后/用户/优惠券/轮播/FAQ/工单/对话/消息/设置全套 CRUD |
+| 认证 | `POST /auth/send-email-code`（注册/登录/找回/绑定场景）`POST /auth/register-email` `POST /auth/login`（账号+密码+图形验证码，管理员同入口）`POST /auth/reset-email-code` `GET /auth/captcha` |
+| 商城 | `GET /shop/banners` `/shop/categories` `/shop/products` `/shop/products/:id` `/shop/hot-keywords` `/shop/faqs` `/shop/coupons` `/shop/site` `/shop/branch-shop` |
+| 用户 | `GET/POST/PUT/DELETE /user/addresses` `GET/POST/DELETE /user/favorites/:pid` `GET/POST/PUT/DELETE /user/cart` `POST /user/orders` `POST /user/orders/:id/pay`（simulate/manual/wechat/alipay/xunhu）`POST /user/orders/:id/cancel|confirm|aftersale|pay-proof` `GET /user/orders` `GET /user/points-logs` `GET/POST /user/tickets` `GET/POST /user/chat` `POST /user/open-branch` |
+| 分站 | `POST /branch/login` `GET /branch/products` `POST /branch/products`（上架，含加价下限校验）`GET /branch/orders` 等 |
+| 管理 | `GET /admin/stats` `GET /admin/orders` `GET /admin/orders/export`（CSV 导出）商品/分类/卡密/订单/售后/用户/优惠券/轮播/FAQ/工单/消息/设置全套 CRUD |
 
-认证方式：`Authorization: Bearer <token>`（用户端 token 存 `localStorage.token`，管理端存 `localStorage.admin_token`）
-
----
-
-## 七、注意事项
-
-- 支付支持「真实支付 + 模拟回退」：在 `server/config.js` 填全微信/支付宝商户参数后自动走真实支付；未配置时回退**模拟支付**（下单即成功、自动发卡），本地演示零成本
-- 短信支持「真实短信 + 本地直显回退」：填全阿里云/腾讯云短信密钥后真实发送；未配置时验证码以 `devCode` 直显
-- 密码使用 SHA-256 加盐存储；请部署后第一时间修改管理员默认密码
-- 数据文件为本地 JSON，多实例部署请勿共享同一数据目录
-- 真实支付回调必须在公网可访问（HTTPS 最佳），否则商户平台无法通知到系统（详见「十一、服务器部署」）
+认证方式：`Authorization: Bearer <token>`（用户 `token` / 管理 `admin_token` / 分站 `branch_token`）
 
 ---
 
-## 八、APP 部署（手机安装 / 安卓打包）
-
-系统已内置 PWA（Progressive Web App）支持，无需应用商店即可在手机上以「APP」形态运行，提供三种方式：
-
-### 方式一：PWA 直接安装（推荐，最快）
-1. 将系统部署到一台电脑或云服务器（`./start.sh` 启动）
-2. 手机与服务器处于同一局域网时，浏览器打开 `http://<服务器IP>:3000/index.html`
-3. 按浏览器提示安装：
-   - **安卓 Chrome/Edge**：地址栏右侧出现「安装应用」图标，或菜单 →「安装应用 / 添加到主屏幕」
-   - **iPhone Safari**：分享按钮 →「添加到主屏幕」
-4. 安装后以**全屏独立窗口**运行，带 APP 图标（`发卡网`），核心页面支持离线打开
-
-> PWA 要求 HTTPS 或 localhost。局域网 IP 访问若无法安装，可用内网穿透（如 cpolar、花生壳）或部署到服务器加 HTTPS（免费证书：Let's Encrypt）。
-
-### 方式二：HBuilderX 云打包 APK（无需本地安卓环境）
-1. 下载安装 [HBuilderX](https://www.dcloud.io/hbuilderx.html)（免费）
-2. 新建 5+ App 项目（或 uni-app 项目），选择「WebView 模式」
-3. 首页指向你的部署地址：`http://<服务器IP>:3000/index.html`（manifest.json → App常用其它设置 → 启动页面/入口）
-4. 「发行 → 原生App-云打包」，使用公共测试证书即可生成 **APK 安装包**
-5. 将 APK 发给手机直接安装
-
-### 方式三：Capacitor 打包（标准 Android APK）
-1. 安装 [Node.js](https://nodejs.org/) 与 [Android Studio](https://developer.android.com/studio)
-2. 在项目目录执行：
-   ```bash
-   npm install @capacitor/core @capacitor/cli
-   npx cap init 发卡网 com.example.cardshop --web-dir public
-   npx cap add android
-   npx cap sync
-   ```
-3. 用 Android Studio 打开 `android/` 目录 → Build → Build APK
-4. 生成 `app-debug.apk` 可直接安装；正式发布需配置签名
-
-> 无论哪种方式，后端 Node 服务都需保持运行（本地电脑 / 云服务器均可）。
-
----
-
-## 九、接入真实微信 / 支付宝支付
-
-系统已内置微信 Native 扫码支付与支付宝电脑网站支付，**无需改代码**，只需配置商户参数。
-
-### 1. 复制配置样例并填写
+## 八、自动测试与回归
 
 ```bash
-cd card-shop/server
-cp config.example.js config.js
-vi config.js
+# 主回归套件（107 项断言，覆盖公开/认证/用户/管理/分站/安全/手动支付，适配邮箱体系）
+node test-reports/api-test-round3.js
+
+# 手动支付专项（37 项，含 H-3 回归：确认收款→自动发卡）
+node test-reports/api-test-manual-pay.js
 ```
 
-### 2. 微信支付（扫码支付，V3 API）
-
-在 `config.js` 的 `pay.wechat` 填入：
-
-| 字段 | 获取方式 |
-|---|---|
-| `appid` | 公众号/开放平台 AppID（需与商户号关联） |
-| `mchid` | 微信支付商户号 |
-| `serialNo` | 商户 API 证书序列号（商户平台 → API 安全） |
-| `privateKey` | 商户 API 私钥 `apiclient_key.pem` 的完整内容（PKCS8） |
-| `apiV3Key` | APIv3 密钥（商户平台自行设置的 32 位随机串） |
-| `platformCert` | 微信支付平台证书（用于回调验签；**留空则跳过验签，仅限内网调试**，生产必填） |
-| `notifyUrl` | 回调地址，如 `https://你的域名/api/pay/notify/wechat`（留空自动取请求域名） |
-
-填写完整后，收银台「确认支付」即展示**微信扫码二维码**（由内置自研 QR 生成器本地绘制，无需外网）。
-
-### 3. 支付宝（电脑网站支付）
-
-在 `pay.alipay` 填入：
-
-| 字段 | 获取方式 |
-|---|---|
-| `appId` | 支付宝开放平台应用 AppID |
-| `privateKey` | 应用私钥（RSA2，`-----BEGIN PRIVATE KEY-----` 开头） |
-| `publicKey` | 支付宝公钥（开放平台 → 公钥管理） |
-| `notifyUrl` | 回调地址，如 `https://你的域名/api/pay/notify/alipay` |
-
-填写完整后，收银台「确认支付」即跳转**支付宝收银台**（iframe 内完成支付）。
-
-### 4. 验证与回退
-
-- 启动后登录用户端 → 下单 → 收银台选择渠道支付
-- 真实渠道参数**不全**时，该渠道自动回退**模拟支付**（下单即成功、自动发卡），不影响演示与开发
-- 真实下单失败（网络/证书问题）也会自动回退模拟，保证功能可用；服务日志会打印失败原因
-- 所有字段均支持环境变量覆盖：`WX_APPID / WX_MCHID / WX_SERIAL_NO / WX_PRIVATE_KEY / WX_API_V3_KEY / WX_PLATFORM_CERT / WX_NOTIFY_URL / WX_RETURN_URL / ALI_APP_ID / ALI_PRIVATE_KEY / ALI_PUBLIC_KEY / ALI_NOTIFY_URL`
-
-> 提示：微信 Native 需要已认证的服务号或开放平台移动应用；支付宝电脑网站支付需已签约产品。回调验签在未配置平台证书时跳过，**生产环境必须配置**并启用 HTTPS。
+> `test-reports/api-test-{public,user,admin,branch,security}.js` 为早期（手机号体系）历史脚本，仅作存档；请以 round3 + manual-pay 为准。测试会产生临时数据，请在测试库执行，结束后可用 `node scripts/reset-demo-data.js` 一键还原干净演示数据。
 
 ---
 
-## 十、接入真实短信
+## 九、云部署
 
-系统已内置阿里云 / 腾讯云短信发送，**无需改代码**，只需在 `server/config.js` 的 `sms` 节配置密钥（二选一）：
+> **上线前（无论何种部署方式）务必执行 `node scripts/prepare-production.js`**，清空演示商品、随机假卡密与演示账号，仅保留站点配置；随后在后台自行创建真实商品并导入真实卡密。
 
-### 阿里云短信
+### Vercel（Serverless，推荐前端体验）
+1. 推送代码到 GitHub，Vercel 导入仓库（框架预设 Other，构建命令 `npm run build`，输出目录 `public`）
+2. 环境变量：`MONGODB_URI`（必填，数据持久化）、`SMTP_USER`/`SMTP_PASS`、`NODE_ENV=production`
+3. `vercel.json` 已配置 API 路由与函数超时（30s），无需改动
 
-```js
-sms: {
-  aliyun: {
-    accessKeyId: '你的AccessKey ID',
-    accessKeySecret: '你的AccessKey Secret',
-    signName: '发卡网',        // 已审核通过的短信签名
-    templateCode: 'SMS_1234567890'  // 已审核通过的模板（含 ${code} 变量）
-  }
-}
-```
+### Render（Web Service）
+1. `render.yaml` 已提供一键部署模板，填入你的 GitHub 仓库地址
+2. 环境变量：`MONGODB_URI`（Render 后台填写）、`SMTP_USER`/`SMTP_PASS`
 
-### 腾讯云短信
+### 传统服务器（宝塔 / PM2 + Nginx）
+1. `npm install --production && pm2 start server/server.js --name card-shop`
+2. Nginx 反向代理到 3000 端口，配置 HTTPS（回调与 PWA 需要）
+3. 环境变量同 `.env.example`
 
-```js
-sms: {
-  tencent: {
-    secretId: '你的SecretId',
-    secretKey: '你的SecretKey',
-    sdkAppId: '1400123456',   // 短信应用 SDKAppID
-    signName: '发卡网',
-    templateId: '123456'      // 已审核通过的模板（含 {1} 变量）
-  }
-}
-```
-
-### 回退规则
-
-- 未配置任何短信服务 → 验证码本地直显（响应 `devCode`），页面自动填入即可
-- 配置了真实服务但发送失败 → 接口返回失败原因，页面提示检查配置；删除配置即恢复本地直显
-- 环境变量覆盖：`ALI_SMS_AK / ALI_SMS_SK / ALI_SMS_SIGN / ALI_SMS_TMPL`、`TENCENT_SMS_ID / TENCENT_SMS_KEY / TENCENT_SMS_APPID / TENCENT_SMS_SIGN / TENCENT_SMS_TMPL`
+> 生产模式（`NODE_ENV=production`）会自动阻断验证码 devCode 直显；未注入 `SMTP_PASS` 时会给出安全警告。
 
 ---
 
-## 十一、服务器部署与 HTTPS（生产环境）
+## 十、注意事项
 
-### 方案一：宝塔面板（推荐新手，全程图形化）
-
-1. 服务器安装宝塔面板，软件商店安装 **Node.js 版本管理器**（选 18+）与 **Nginx**
-2. 上传项目到 `/www/wwwroot/card-shop`（**不含** `node_modules`、`data`、`uploads`）
-3. SSH 执行：
-   ```bash
-   cd /www/wwwroot/card-shop
-   npm install --production
-   cp server/config.example.js server/config.js   # 填写商户/短信参数（可选）
-   ```
-4. 宝塔 → 网站 → 添加 Node 项目：启动文件 `server/server.js`，端口 `3000`，勾选开机自启
-5. **域名与 HTTPS**：网站 → Node 项目 → 域名绑定（解析 A 记录到服务器 IP）→ SSL → Let's Encrypt 一键申请 → 开启「强制 HTTPS」
-6. 宝塔 Nginx 会自动反向代理到 3000 端口，浏览器访问 `https://你的域名` 即进入用户端
-
-### 方案二：手动部署（Ubuntu/Debian 示例）
-
-```bash
-# 1. 安装 Node.js 18+ 与 PM2
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-sudo npm install -g pm2
-
-# 2. 上传项目并安装依赖
-cd /var/www/card-shop
-npm install --production
-
-# 3. 复制并填写真实配置（可选）
-cp server/config.example.js server/config.js
-
-# 4. PM2 守护进程（开机自启）
-pm2 start server/server.js --name card-shop
-pm2 save && pm2 startup
-
-# 5. 安装 Nginx 反向代理
-sudo apt-get install -y nginx
-sudo tee /etc/nginx/sites-available/card-shop > /dev/null <<'EOF'
-server {
-    listen 80;
-    server_name 你的域名;   # 已解析到本机的域名
-
-    client_max_body_size 10m;
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-EOF
-sudo ln -s /etc/nginx/sites-available/card-shop /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-
-# 6. 申请免费 HTTPS 证书（Let's Encrypt）
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d 你的域名    # 自动签发并配置 443/强制跳转
-```
-
-完成后访问 `https://你的域名`（用户端）、`https://你的域名/admin.html`（管理后台）。
-
-### 回调地址与内网穿透
-
-真实支付回调要求公网可达：在 `config.js` 中把 `notifyUrl` 填成 `https://你的域名/api/pay/notify/wechat`（支付宝同理）。本地开发可用内网穿透（cpolar / ngrok / 花生壳）将 3000 端口映射到公网临时地址，并把该地址填入 notifyUrl。
-
----
-
-## 十二、PWA 上线（手机秒变 APP）
-
-系统已内置 `manifest.webmanifest` 与 `sw.js`，**部署到 HTTPS 域名后自动具备 PWA 能力**：
-
-1. 完成「十一」的部署（HTTPS 是 PWA 安装的前提，localhost 除外）
-2. 手机浏览器打开 `https://你的域名`
-3. 安装应用：安卓 Chrome/Edge 地址栏出现「安装」图标；iPhone Safari 用分享 →「添加到主屏幕」
-4. 安装后以全屏独立窗口运行，带 `发卡网` 图标，核心页面离线可用（Service Worker 缓存）
-
-> 修改了前端文件后，浏览器会自动更新缓存；若想强制刷新版本，重启服务并硬刷新一次即可。
+- 支付支持「真实渠道 + 模拟回退」：后台填全微信/支付宝/虎皮椒参数后走真实支付；未配置时回退模拟支付（下单即成功、自动发卡），本地演示零成本
+- **微信支付回调验签依赖原始请求体**：本地 `server.js` 与 Vercel 入口 `api/index.js` 均已实现 `rawBody` 捕获；未配置平台证书时回调会被拒绝（不会免费发货）
+- 密码使用 **scrypt** 慢哈希存储；卡密/订单号使用 `crypto.randomBytes` 加密安全随机
+- 数据文件为本地 JSON 时，多实例部署请勿共享同一数据目录；生产建议 MongoDB
+- 真实支付回调必须在公网可访问（HTTPS 最佳）

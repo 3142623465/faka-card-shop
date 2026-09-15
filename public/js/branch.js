@@ -495,7 +495,7 @@
           bRender();
         } catch (e) { toast(e.message, 'error'); }
       });
-      $('[data-saveprice]', root).forEach((b) => b.addEventListener('click', async () => {
+      $$('[data-saveprice]', root).forEach((b) => b.addEventListener('click', async () => {
         const id = Number(b.getAttribute('data-saveprice'));
         const price = Number($('#bp-price-' + id, root).value);
         try {
@@ -504,7 +504,7 @@
           bRender();
         } catch (e) { toast(e.message, 'error'); }
       }));
-      $('[data-pstatus]', root).forEach((b) => b.addEventListener('click', async () => {
+      $$('[data-pstatus]', root).forEach((b) => b.addEventListener('click', async () => {
         const id = Number(b.getAttribute('data-pstatus'));
         const target = b.textContent.trim().includes('上架') ? 1 : 0;
         try {
@@ -513,7 +513,7 @@
           bRender();
         } catch (e) { toast(e.message, 'error'); }
       }));
-      $('[data-pdel]', root).forEach((b) => b.addEventListener('click', async () => {
+      $$('[data-pdel]', root).forEach((b) => b.addEventListener('click', async () => {
         const id = Number(b.getAttribute('data-pdel'));
         if (!confirm('确定删除该商品？')) return;
         try {

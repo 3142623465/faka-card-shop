@@ -8,8 +8,21 @@ const db = require('../db');
 const auth = require('../auth');
 const util = require('../util');
 
-/** 计算商品实际库存（统一库存池：手动/自动商品都取 stock，auto 商品由卡密导入/发卡/退款时同步 stock） */
+/**
+ * 计算商品实际库存（统一库存池口径）
+ * - auto 自动发货：真实库存 = 该商品未使用卡密数（唯一真实来源；卡密导入/发卡/退款时 admin.js 同步 stock 字段，
+ *   此处直接统计可彻底避免 seed/历史数据/手工改动导致的 stock 字段不同步而误判售罄）
+ * - manual 手动发货：取 stock 字段
+ */
 function stockOf(product, d) {
+  if (product.type === 'auto') {
+    let n = 0;
+    for (let i = 0; i < d.cards.length; i++) {
+      const c = d.cards[i];
+      if (c.productId === product.id && c.status === 'unused') n++;
+    }
+    return n;
+  }
   return product.stock || 0;
 }
 

@@ -103,9 +103,9 @@
   <h1>发卡网系统 全面测试报告</h1>
   <div class="sub">系统代号「324云系统」 · Node.js + Express + JSON 文件存储 · 前端原生单页应用</div>
   <div class="meta">
-    <div><b>225</b><span>API 自动化测试项</span></div>
-    <div><b>8</b><span>页面 UI 实测</span></div>
-    <div><b>17</b><span>发现缺陷（2 严重 / 6 中等 / 9 轻微）</span></div>
+    <div><b>267</b><span>API 自动化测试项（含二轮）</span></div>
+    <div><b>8+</b><span>页面 UI 实测</span></div>
+    <div><b>19</b><span>累计缺陷（2 严重 / 6 中等 / 11 轻微）</span></div>
     <div><b>9/10</b><span>模块核心功能通过</span></div>
   </div>
 </div>
@@ -120,7 +120,9 @@
   <a href="#s6">6. 界面排版分析</a>
   <a href="#s7">7. 代码质量评估</a>
   <a href="#s8">8. 改进建议（优先级）</a>
-  <a href="#s9">9. 附录与数据说明</a>
+  <a href="#s9">9. 二轮专项测试：手动支付模块（9/15）</a>
+  <a href="#s10">10. 缺陷修复验证（9/15 新代码）</a>
+  <a href="#s11">11. 附录与数据说明</a>
 </div>
 
 <!-- ========== 1 概述 ========== -->
@@ -130,7 +132,7 @@
   <table>
     <tr><th style="width:140px">项目路径</th><td><code>D:\faka</code></td></tr>
     <tr><th>技术栈</th><td>后端：Node.js / Express；存储：JSON 文件（db.json，防抖落盘）；前端：原生 JS 单页应用（app.js 3069 行 / admin.js 1663 行）</td></tr>
-    <tr><th>核心功能</th><td>用户注册/登录（手机+邮箱+第三方）、商品展示、购物车、下单支付（模拟/微信/支付宝/虎皮椒）、自动发卡、售后、工单客服、积分、优惠券、分站分销、管理后台</td></tr>
+    <tr><th>核心功能</th><td>用户注册/登录（邮箱验证码体系，9/15 重构）、商品展示、购物车、下单支付（手动转账/模拟/微信/支付宝/虎皮椒）、自动发卡、售后、工单客服、积分、优惠券、分站分销、管理后台</td></tr>
     <tr><th>测试时间</th><td>2026-09-14（当日数据）</td></tr>
     <tr><th>测试环境</th><td>本机 localhost:3000，development 模式（验证码 devCode 直显）</td></tr>
   </table>
@@ -364,42 +366,135 @@
 <h2 id="s8">8. 改进建议（按优先级）</h2>
 <div class="card">
   <h3>P0 · 立即修复（上线前必须）</h3>
-  <p>① <b>商品价格强制 &gt;= 0 校验</b>（H-1）——前后端双重校验，防止 0 元购。<br>
-  ② <b>敏感配置迁移环境变量</b>（H-2）——移除 config.js 明文授权码，启动时校验必填项。<br>
-  ③ <b>支付渠道未配置证书时拒绝回调</b>（M-5）——生产环境杜绝「跳过验签」路径。<br>
-  ④ <b>生产模式阻断 devCode 直显</b>（M-6）——启动强校验 NODE_ENV，误配置直接报错。</p>
+  <p>① <b>手动支付确认收款不发货</b>（H-3，9/15 新发现）——修复 settle 幂等保护，恢复「确认收款=结算发货」，并回归 5/6/7 区块用例。<br>
+  ② <b>敏感配置迁移环境变量</b>（H-2）——移除 config.js 明文授权码（9/15 复查仍未处理），启动时校验必填项。<br>
+  ③ <b>生产模式阻断 devCode 直显</b>（M-6）——启动强校验 NODE_ENV，误配置直接报错。<br>
+  <span class="small" style="color:#16A34A">✓ 首轮 P0 中：H-1 负价校验、M-5 回调验签已于 9/15 修复。</span></p>
   <h3>P1 · 尽快修复（1-2 周）</h3>
-  <p>⑤ <b>卡密去重改为商品维度</b>（M-1）；⑥ <b>删除用户/上级分站级联清理分站 + 孤儿分站可删</b>（M-3）；⑦ <b>增加安全响应头</b>（M-2，helmet 一行接入）；⑧ <b>密码哈希升级 scrypt、卡密用 crypto.randomBytes</b>（M-4）。</p>
-  <h3>P2 · 体验与健壮性（按节奏安排）</h3>
-  <p>⑨ 全部重复卡密返回 <code>added:0 + duplicated:n</code>（L-1）；⑩ 管理后台按订单状态控制删除按钮（L-2）；⑪ 后端统一 HTML 过滤（L-3）；⑫ 修复 test-all.js 固定账号依赖与异常中断（L-4）；⑬ README 补充分站模块与真实测试账号（L-5）；⑭ 管理后台窄屏抽屉化（L-6）；⑮ 快捷宫格补位、统一主题色（L-7/L-8）；⑯ 增加 db.json 定时备份脚本（L-9）。</p>
+  <p>④ <b>同批次重复卡密检测</b>（L-10，9/15 新发现）；⑤ 管理后台按订单状态控制删除按钮（L-2）；⑥ 后端统一 HTML 过滤（L-3）；⑦ 修复 test-all.js 固定账号依赖（L-4，9/15 已同步为邮箱体系）；⑧ README 补充分站模块与真实测试账号（L-5，演示账号已更新为 demo@example.com）；⑨ 管理后台窄屏抽屉化（L-6）；⑩ 快捷宫格补位、统一主题色（L-7/L-8）；⑪ 增加 db.json 定时备份脚本（L-9）。<br>
+  <span class="small" style="color:#16A34A">✓ 首轮 P1 中：M-1 卡密去重、M-2 安全头、M-3 级联删除、M-4 scrypt 哈希已于 9/15 修复。</span></p>
   <h3>P3 · 长期演进</h3>
   <p>⑰ 前端 app.js/admin.js 拆分模块（或引入 Vue/React 渐进重构）；⑱ 引入自动化测试框架 + CI（至少守护认证、结算、支付回调三条链路）；⑲ 存储层可选 SQLite（better-sqlite3）以支持事务与更大数据量；⑳ 结构化日志与错误监控。</p>
 </div>
 
-<!-- ========== 9 附录 ========== -->
-<h2 id="s9">9. 附录与数据说明</h2>
+<!-- ========== 9 二轮专项：手动支付 ========== -->
+<h2 id="s9">9. 二轮专项测试：本地手动支付模块（2026-09-15）</h2>
+
 <div class="card">
-  <h3>9.1 交付物清单</h3>
+  <h3>9.1 测试背景与代码变更</h3>
+  <p>2026-09-15 用户对代码做了大范围重构并提交（git 单次提交 <code>5cacb0f「手动转账支付功能+微信收款码」</code>），涉及 auth/user/shop/admin/pay/branch/server/settle 共 9 个文件：<b>认证体系由「手机号+短信验证码」重构为「邮箱+验证码」</b>（<code>/auth/send-email-code</code>、<code>/auth/register-email</code>、<code>/auth/login-email-code</code>、<code>/auth/reset-email-code</code>）；管理员登录改走 <code>/auth/login</code>（账号+密码+图形验证码）；seed 演示账号改为 <code>demo@example.com / 123456</code>。手动支付（manual）业务逻辑本身未变化。</p>
+  <p>二轮测试基于新代码，新增手动支付专项脚本 <code>test-reports/api-test-manual-pay.js</code>（37 项断言）+ 修复验证脚本 <code>api-test-fix-verify.js</code>（5 项断言），全部在真实服务上运行。</p>
+</div>
+
+<div class="card">
+  <h3>9.2 手动支付业务流程（按代码梳理）</h3>
+  <p><b>用户端</b>：<code>POST /user/orders/:id/pay {method:'manual'}</code>（需后台开启 <code>manualPayEnabled</code>）→ 订单转 <code>pending_confirm</code>（待确认），返回微信/支付宝收款码与支付说明；用户可 <code>POST /user/orders/:id/pay-proof</code> 上传付款凭证（仅 pending_confirm 可传，截断 500 字）。<b>管理端</b>：<code>POST /admin/orders/:id/confirm-pay</code> 确认收款 → 调用 <code>settle.settlePaidOrder</code> 结算 → 自动商品自动发卡（shipped）/ 手动商品转 paid 待发货 → 站内消息通知。<b>取消</b>：pending 与 pending_confirm 均可取消并释放优惠券。</p>
+</div>
+
+<div class="card">
+  <h3>9.3 测试结果：30 通过 / 7 失败</h3>
+  <div class="stat-grid">
+    <div class="stat"><b class="s-green">30</b><span>通过</span></div>
+    <div class="stat"><b class="s-red">7</b><span>失败（同一根因）</span></div>
+    <div class="stat"><b class="s-blue">11</b><span>场景区块</span></div>
+    <div class="stat"><b class="s-blue">81.1%</b><span>通过率</span></div>
+  </div>
+  <table>
+    <tr><th>场景</th><th>结果</th><th>说明</th></tr>
+    <tr><td>① 未开启时发起被拒，订单保持 pending</td><td><span class="badge b-pass">通过</span></td><td>返回「手动转账支付未开启」</td></tr>
+    <tr><td>② 开启+配置收款码后发起成功，返回双码与说明</td><td><span class="badge b-pass">通过</span></td><td>订单转 pending_confirm、渠道 manual；状态变化后不可换方式重付</td></tr>
+    <tr><td>③ 上传付款凭证（正常/空/超长截断/状态限制）</td><td><span class="badge b-pass">通过</span></td><td>凭证保存、空凭证拒绝、900 字截断至 500、pending 不可传</td></tr>
+    <tr><td>④ 越权（用户 B 操作 A 订单）</td><td><span class="badge b-pass">通过</span></td><td>传凭证/查看订单/支付操作全拒</td></tr>
+    <tr><td>⑤ 商家确认收款 → 自动发卡</td><td><span class="badge b-fail">失败</span></td><td><b>确认后订单仍 pending_confirm，不发货不发卡</b>（新严重缺陷）</td></tr>
+    <tr><td>⑥ 手动发货商品确认收款 → paid</td><td><span class="badge b-fail">失败</span></td><td>同上，状态卡死 pending_confirm</td></tr>
+    <tr><td>⑦ 待确认订单可取消/库存与优惠券释放</td><td><span class="badge b-fail">部分失败</span></td><td>取消可用且释放正常；但「已发货不可取消」断言失败（因订单从未发货）</td></tr>
+    <tr><td>⑧ 用户 token 调 confirm-pay</td><td><span class="badge b-pass">通过</span></td><td>401 拦截有效</td></tr>
+    <tr><td>⑨ 收款码为空仍可发起（空字符串兜底）</td><td><span class="badge b-pass">通过</span></td><td>不阻塞流程，管理端需配置收款码</td></tr>
+    <tr><td>⑩ 待确认取消后优惠券释放</td><td><span class="badge b-pass">通过</span></td><td>满减券恢复 unused</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>9.4 新发现严重缺陷</h3>
+  <div class="issue H">
+    <div class="it"><span class="sev sev-H">H-3</span> 商家确认收款后订单不结算、不发货，卡死 pending_confirm <span class="badge b-fail">已复现</span></div>
+    <div class="idc">涉及：POST /api/admin/orders/:id/confirm-pay（admin.js:460-475）→ settle.settlePaidOrder（settle.js:66-70）· 手动支付主链路</div>
+    <p><b>现象</b>：手动支付订单进入 pending_confirm 后，管理员调用确认收款接口，接口返回成功（<code>{"msg":"已确认收款","status":"pending_confirm","autoShipped":false}</code>），但订单状态<b>保持 pending_confirm 不变</b>：不结算、不发卡、不产生「支付已确认」消息。经代码定位：<code>settlePaidOrder</code> 的幂等保护 <code>if (o.status !== 'pending') return {ok:true,...}</code> 把 pending_confirm 误判为「已结算订单」直接短路返回；而 confirm-pay 传入的正是 pending_confirm 订单。git 历史确认该矛盾与「手动转账支付」功能同时引入，<b>功能从未真正联调通过</b>。</p>
+    <p><b>影响（严重）</b>：① 手动转账支付<b>核心链路彻底不可用</b>——用户付款后商家无法确认，商品永不发货；② 订单可被<b>无限次重复确认</b>（每次返回成功但不改变状态），幂等性缺失；③ 因订单仍处 pending_confirm，<b>用户仍可取消已收款订单</b>，形成「商家收了钱、用户退款」的资金风险；④ 卡死订单既不能结算也不能删除（管理端删除接口仅允许 pending/cancelled/refunded），成为永久数据垃圾。</p>
+    <div class="fix"><b>修复建议（二选一）</b>：① 在 <code>settlePaidOrder</code> 幂等保护中加入 pending_confirm：<code>if (o.status !== 'pending' && o.status !== 'pending_confirm')</code>（推荐，恢复「确认收款=结算发货」语义）；② 在 confirm-pay 中先校验 pending_confirm，再调用结算。修复后需回归：确认收款 → 自动商品发货 + 卡密锁定 + 消息通知；重复确认被拒；已确认订单不可取消。对应自动化用例见 <code>api-test-manual-pay.js</code> 第 5/6/7 区块（修复后应全部转 PASS）。</div>
+  </div>
+</div>
+
+<!-- ========== 10 修复验证 ========== -->
+<h2 id="s10">10. 缺陷修复验证（2026-09-15 新代码）</h2>
+
+<div class="card">
+  <h3>10.1 首轮 17 项缺陷修复状态</h3>
+  <table>
+    <tr><th style="width:70px">编号</th><th>缺陷</th><th style="width:110px">修复状态</th><th>验证方式</th></tr>
+    <tr><td>H-1</td><td>商品价格可为负数（0 元购）</td><td><span class="badge b-pass">已修复</span></td><td>代码 + API 实测：price:-100 / originalPrice:-5 均被拒（「商品价格不能为负数」）</td></tr>
+    <tr><td>H-2</td><td>config.js 明文 QQ 邮箱授权码</td><td><span class="badge b-warn">未修复</span></td><td>代码确认：<code>xfhdzreujddrdgif</code> 仍在文件中（仅补充了「建议用环境变量」注释，注释中声称的 SMTP_USER/SMTP_PASS 覆盖未实现于 config.js 读取）</td></tr>
+    <tr><td>M-1</td><td>卡密去重为全局维度</td><td><span class="badge b-pass">已修复</span></td><td>代码 + API 实测：改为商品维度（<code>c.productId === pid</code>），跨商品同码互不拦截；跨批次重复返回「N 条已在当前商品中存在」</td></tr>
+    <tr><td>M-2</td><td>无 CSP / X-Frame-Options 安全头</td><td><span class="badge b-pass">已修复</span></td><td>代码确认：server.js 新增全套安全头（CSP 含 frame-ancestors 'none'、X-Frame-Options DENY、nosniff、Referrer-Policy、X-XSS-Protection），注释标注「M-2」</td></tr>
+    <tr><td>M-3</td><td>删除用户不级联清理分站（孤儿分站）</td><td><span class="badge b-pass">已修复</span></td><td>代码确认：递归级联删除名下及下级分站；新增「未完成订单不可删用户」保护</td></tr>
+    <tr><td>M-4</td><td>SHA-256 单轮哈希 + Math.random 卡密</td><td><span class="badge b-pass">已修复</span></td><td>代码确认：密码升级 <code>scrypt$salt:hash</code>（兼容旧格式校验）；卡密用 crypto.randomBytes 加密安全随机</td></tr>
+    <tr><td>M-5</td><td>支付渠道未配置证书跳过验签</td><td><span class="badge b-pass">已修复</span></td><td>代码确认：未配置平台证书时<b>拒绝</b>微信回调（不再放行）；支付密钥支持环境变量注入</td></tr>
+    <tr><td>M-6</td><td>验证码 devCode 直显仅靠 NODE_ENV</td><td><span class="badge b-warn">未修复</span></td><td>代码确认：仍以 <code>process.env.NODE_ENV === 'production'</code> 判断，本地/误配置环境仍会返回 devCode</td></tr>
+    <tr><td>L-1</td><td>全部重复卡密返回错误而非 added:0</td><td><span class="badge b-warn">部分修复</span></td><td>跨批次语义已修复（added:0 + duplicated:n）；<b>但同批次内重复漏检</b>（见 10.2 新缺陷）</td></tr>
+    <tr><td>L-2~L-9</td><td>UI/文档/脚本类轻微项</td><td><span class="badge b-pass">部分改善</span></td><td>认证页面随邮箱体系重构；README/seed 默认账号已改为 demo@example.com；其余按需复查</td></tr>
+  </table>
+  <p style="margin-top:10px"><b>小结</b>：首轮 6/8 项核心安全与功能缺陷已修复（H-1、M-1~M-5）；H-2（明文密钥）与 M-6（devCode 直显）仍未处理，建议按 P0 优先修复。</p>
+</div>
+
+<div class="card">
+  <h3>10.2 新代码引入的附加缺陷</h3>
+  <div class="issue L">
+    <div class="it"><span class="sev sev-L">L-10</span> 同批次粘贴的重复卡密不被检测 <span class="badge b-fail">已复现</span></div>
+    <div class="idc">涉及：POST /api/admin/products/:id/cards（admin.js 卡密导入）</div>
+    <p><b>现象</b>：一次提交 <code>AAA\nAAA\nBBB</code> 返回 <code>{"added":3,"duplicated":0}</code>——重复检测只查数据库已有卡密（<code>d.cards.some</code>），未查本批 newCards，同批次内重复全部入库；再次提交 <code>AAA</code> 才提示「1 条已在当前商品中存在」。</p>
+    <p><b>影响</b>：管理员批量粘贴卡密时重复内容无法当场发现，卡池出现重复卡密，用户可能收到相同卡密（售后/赔付风险）。</p>
+    <div class="fix"><b>修复建议</b>：循环内用 Set 记录本批已见 code，<code>if (seen.has(code) || d.cards.some(...)) duplicated++</code>。</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>10.3 认证体系变更与数据现状</h3>
+  <table>
+    <tr><th style="width:160px">项</th><th>变更前（9/14）</th><th>变更后（9/15）</th></tr>
+    <tr><td>注册/登录</td><td>手机号 + 短信验证码（send-code / register）</td><td>邮箱 + 邮箱验证码（send-email-code / register-email / login-email-code）</td></tr>
+    <tr><td>管理员登录</td><td>POST /api/admin/login</td><td>POST /api/auth/login（account+password+captcha）</td></tr>
+    <tr><td>找回密码</td><td>手机验证码</td><td>邮箱验证码 / 邮件令牌双通道</td></tr>
+    <tr><td>演示账号</td><td>13800000000（seed 未创建，脚本中断）</td><td>demo@example.com / 123456（seed 已创建）</td></tr>
+  </table>
+  <p style="margin-top:10px"><b>注意</b>：当前 <code>data/db.json</code> 中 <code>users</code> 为空（0 个用户）、products 16、orders 0、cards 0——既有种子演示用户未随新 seed 重建（服务端仅在 settings 不存在时初始化）。如需演示账号，可运行 <code>node server/seed.js</code> 重建或后台手动创建。测试产生数据已全部清理；测试前备份 <code>data/db.json.bak-manualpay-test / .bak-manualpay-2</code>。</p>
+</div>
+
+<!-- ========== 11 附录 ========== -->
+<h2 id="s11">11. 附录与数据说明</h2>
+<div class="card">
+  <h3>11.1 交付物清单</h3>
   <table>
     <tr><th>文件</th><th>说明</th></tr>
-    <tr><td><code>test-reports/api-test-{public,user,admin,branch,security}.js</code></td><td>5 组自动化测试脚本（可复跑：服务启动后 node 运行）</td></tr>
-    <tr><td><code>test-reports/result-*.json</code></td><td>各组测试原始结果（PASS/FAIL + 明细）</td></tr>
+    <tr><td><code>test-reports/api-test-{public,user,admin,branch,security}.js</code></td><td>5 组自动化测试脚本（首轮 225 项，可复跑）</td></tr>
+    <tr><td><code>test-reports/api-test-manual-pay.js</code></td><td>手动支付专项脚本（二轮 37 项，含设置原值恢复与数据清理）</td></tr>
+    <tr><td><code>test-reports/api-test-fix-verify.js</code></td><td>缺陷修复验证脚本（二轮 5 项）</td></tr>
+    <tr><td><code>test-reports/result-*.json</code> / <code>err-*.txt</code></td><td>各组测试原始结果（PASS/FAIL + 明细）与错误日志</td></tr>
     <tr><td><code>test-reports/xss-scan.js</code></td><td>前端 XSS 静态扫描脚本</td></tr>
-    <tr><td><code>data/db.json.bak-before-test</code></td><td>测试前数据库备份</td></tr>
+    <tr><td><code>data/db.json.bak-before-test</code> / <code>.bak-manualpay-test</code> / <code>.bak-manualpay-2</code></td><td>两轮测试前数据库备份</td></tr>
   </table>
-  <h3>9.2 测试脚本复跑方式</h3>
-  <p><code>node server/server.js</code>（或 <code>启动服务.bat</code>）→ <code>node test-reports/api-test-public.js</code> 等。注意：脚本含 60 秒限频等待，单组耗时约 1-3 分钟；请在测试库上运行，勿在正式数据上执行。</p>
-  <h3>9.3 与项目自带测试脚本的差异</h3>
-  <p>项目自带 <code>scripts/test-all.js</code> 覆盖 100+ 项基础断言，但在当前数据库中断于「发送重置验证码(已注册号)」——其依赖固定账号 <code>13800000000</code>（seed 未创建，L-4/L-5）。本报告测试脚本使用动态注册账号并覆盖越权/并发/回调伪造/排版等更深层维度，与项目脚本互为补充。</p>
-  <h3>9.4 局限性声明</h3>
-  <p>① 支付测试在沙箱/模拟模式下进行，真实微信/支付宝/虎皮椒联调未执行（需商户参数）；② 短信/邮件发送在本地直显模式验证，真实云厂商通道未联调；③ UI 实测基于 Chromium 420px 视口 + 桌面后台页面，未覆盖全部机型与浏览器；④ 未做性能/压测与长时间稳定性测试；⑤ 测试于 development 模式运行。</p>
-  <h3>9.5 综合结论</h3>
+  <h3>11.2 测试脚本复跑方式</h3>
+  <p><code>node server/server.js</code>（或 <code>启动服务.bat</code>）→ 新代码下先 <code>node test-reports/api-test-manual-pay.js</code>（依赖新版邮箱认证）。注意：脚本含 60 秒限频等待，单组耗时约 1-3 分钟；请在测试库上运行，勿在正式数据上执行。</p>
+  <h3>11.3 与项目自带测试脚本的差异</h3>
+  <p>项目自带 <code>scripts/test-all.js</code> 在旧版手机号体系下中断；新版已改邮箱体系，建议同步更新其固定账号依赖。本报告测试脚本使用动态注册账号并覆盖越权/并发/回调伪造/手动支付/修复回归等更深层维度，与项目脚本互为补充。</p>
+  <h3>11.4 局限性声明</h3>
+  <p>① 支付测试在沙箱/模拟模式下进行，真实微信/支付宝/虎皮椒联调未执行（需商户参数）；② 邮件发送在本地直显模式验证，真实 SMTP 通道未联调；③ UI 实测基于 Chromium 420px 视口 + 桌面后台页面，未覆盖全部机型与浏览器；④ 未做性能/压测与长时间稳定性测试；⑤ 测试于 development 模式运行。</p>
+  <h3>11.5 综合结论（更新至二轮）</h3>
   <p style="background:var(--primary-soft);padding:14px 16px;border-radius:10px;margin-top:12px">
-  <b>系统整体质量良好，核心交易链路（下单→支付→自动发卡→售后）功能完整且安全边界扎实</b>（越权、超卖、回调伪造、限频均防护有效，前端 XSS 转义到位）。当前<b>不阻塞演示/试用</b>；但<b>上线生产前必须修复 P0 四项</b>（负价 0 元购、明文密钥、回调跳验签、devCode 直显），并按 P1 补齐安全响应头与数据清理级联逻辑。修复后建议进行一次回归（可直接复用本报告测试脚本）与真实支付渠道联调。</p>
+  <b>系统整体质量良好，首轮报告的 6/8 项核心缺陷已被快速修复</b>（负价校验、卡密商品维度去重、安全响应头、用户级联删除、scrypt 哈希、拒绝无证书回调），认证体系完成邮箱化重构，整体安全性显著提升。<b>但手动支付模块存在阻断级缺陷（H-3）：商家确认收款后订单不结算不发货</b>——该功能与代码同时提交、从未联调通过，涉及真实资金，<b>上线前必须修复并回归</b>。另需跟进：明文邮箱授权码迁移环境变量（H-2）、devCode 生产阻断（M-6）、同批次重复卡密检测（L-10）。修复后建议执行 <code>api-test-manual-pay.js</code> 全量回归（预期 37/37 通过）并做真实支付渠道联调。</p>
 </div>
 
 <div class="footer">
-  发卡网系统全面测试报告 · 生成于 2026-09-14 · 产品测试经理视角 · 测试数据已清理，原数据已备份
+  发卡网系统全面测试报告（二轮更新） · 2026-09-15 · 产品测试经理视角 · 测试数据已清理
 </div>
 
 </div>
