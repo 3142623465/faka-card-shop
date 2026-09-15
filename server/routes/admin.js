@@ -909,9 +909,14 @@ router.delete('/users/:id', auth.requireAdmin, (req, res) => {
   const d = db.load();
   const u = d.users.find((x) => x.id === Number(req.params.id));
   if (!u) return res.json(util.fail('用户不存在'));
-  // 检查是否有未完成订单
-  const hasActive = d.orders.some((o) => o.userId === u.id && ['pending', 'paid', 'shipped'].includes(o.status));
-  if (hasActive) return res.json(util.fail('该用户有未完成订单，无法删除'));
+  // 自动取消该用户所有未完成订单
+  d.orders.forEach((o) => {
+    if (o.userId === u.id && ['pending', 'paid', 'shipped'].includes(o.status)) {
+      o.status = 'cancelled';
+      o.cancelReason = '用户被管理员删除';
+      o.cancelledAt = util.now();
+    }
+  });
   // 级联删除该用户名下分站（含其下级，递归）
   const delBranchIds = new Set();
   const collectBranches = (pid) => {
