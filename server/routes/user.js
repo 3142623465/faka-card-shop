@@ -632,6 +632,35 @@ router.get('/points-logs', auth.requireUser, (req, res) => {
   res.json(util.ok({ ...util.paginate(list, page, size), balance: req.user.points || 0 }));
 });
 
+/** 积分兑换余额 */
+router.post('/points/exchange', auth.requireUser, (req, res) => {
+  const { points } = req.body || {};
+  const pts = parseInt(points);
+  if (!pts || pts <= 0) return res.json(util.fail('请输入有效的积分数量'));
+  if (pts % 100 !== 0) return res.json(util.fail('积分需为100的整数倍'));
+  const d = db.load();
+  const s = d.settings || {};
+  const rate = s.pointsExchangeRate || 100;
+  if (req.user.points < pts) return res.json(util.fail('积分不足，当前 ' + req.user.points + ' 积分'));
+  const amount = Math.round((pts / rate) * 100) / 100;
+  if (amount <= 0) return res.json(util.fail('兑换金额无效'));
+  req.user.points -= pts;
+  req.user.balance = Math.round(((req.user.balance || 0) + amount) * 100) / 100;
+  d.pointsLogs.push({
+    id: util.nextId('pointsLogs'), userId: req.user.id, change: -pts,
+    balance: req.user.points, type: 'exchange', desc: '积分兑换余额 ' + pts + ' 积分 → ¥' + amount.toFixed(2),
+    createdAt: util.now()
+  });
+  d.balanceLogs = d.balanceLogs || [];
+  d.balanceLogs.push({
+    id: util.nextId('balanceLogs'), userId: req.user.id, change: amount,
+    balance: req.user.balance, type: 'exchange', desc: '积分兑换余额 ' + pts + ' 积分 → ¥' + amount.toFixed(2),
+    createdAt: util.now()
+  });
+  db.save();
+  res.json(util.ok({ points: req.user.points, balance: req.user.balance, amount, msg: '兑换成功，' + pts + ' 积分 → ¥' + amount.toFixed(2) }));
+});
+
 /* ================= 工单 ================= */
 
 router.get('/tickets', auth.requireUser, (req, res) => {
