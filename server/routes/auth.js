@@ -88,7 +88,7 @@ function publicUser(u) {
   return {
     id: u.id, phone: u.phone, nickname: u.nickname, avatar: u.avatar,
     gender: u.gender, birthday: u.birthday, email: u.email || '',
-    points: u.points || 0, level: u.level || 1, levelName: u.levelName || '普通会员',
+    points: u.points || 0, balance: u.balance || 0, level: u.level || 1, levelName: u.levelName || '普通会员',
     totalSpend: u.totalSpend || 0, status: u.status, createdAt: u.createdAt,
     needBind: !!u.needBind, isThird: !!u.isThird, provider: u.provider || '', oauthSource: u.oauthSource || ''
   };

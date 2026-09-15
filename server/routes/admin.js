@@ -879,6 +879,13 @@ router.put('/users/:id/balance', auth.requireAdmin, (req, res) => {
     desc: String(reason || (diff > 0 ? '管理员充值' : '管理员扣款')),
     createdAt: util.now()
   });
+  // 发送系统通知
+  d.messages.push({
+    id: util.nextId('messages'), userId: u.id, type: 'system',
+    title: diff > 0 ? '余额充值成功' : '余额调整',
+    content: `您的账户余额已${diff > 0 ? '充值' : '调整'} ¥${Math.abs(diff).toFixed(2)}，当前余额 ¥${u.balance.toFixed(2)}。${reason ? '原因：' + reason : ''}`,
+    isRead: 0, createdAt: util.now()
+  });
   db.save();
   db.flushNow(); // 用户余额变更立即落盘
   res.json(util.ok({ balance: u.balance }));
@@ -1393,7 +1400,17 @@ router.put('/branches/:id/balance', auth.requireAdmin, (req, res) => {
     desc: (desc || (amount > 0 ? '管理员充值' : '管理员扣减')) + (amount > 0 ? ` ¥${amount.toFixed(2)}` : ` ¥${Math.abs(amount).toFixed(2)}`),
     relatedId: 0, createdAt: util.now()
   });
+  // 给分站所有者发送系统通知
+  if (b.ownerId) {
+    d.messages.push({
+      id: util.nextId('messages'), userId: b.ownerId, type: 'system',
+      title: amount > 0 ? '分站余额充值成功' : '分站余额调整',
+      content: `您的分站「${b.name}」余额已${amount > 0 ? '充值' : '调整'} ¥${Math.abs(amount).toFixed(2)}，当前分站余额 ¥${nb.toFixed(2)}。${desc ? '原因：' + desc : ''}`,
+      isRead: 0, createdAt: util.now()
+    });
+  }
   db.save();
+  db.flushNow();
   res.json(util.ok({ balance: b.balance }));
 });
 

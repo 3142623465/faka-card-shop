@@ -658,6 +658,7 @@ router.post('/points/exchange', auth.requireUser, (req, res) => {
     createdAt: util.now()
   });
   db.save();
+  db.flushNow(); // 积分兑换立即落盘，防止serverless环境丢失
   res.json(util.ok({ points: req.user.points, balance: req.user.balance, amount, msg: '兑换成功，' + pts + ' 积分 → ¥' + amount.toFixed(2) }));
 });
 
