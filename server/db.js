@@ -1,4 +1,4 @@
-﻿/**
+/**
  * db.js - 数据库适配层（双模式）
  * - 云部署（MONGODB_URI 存在）：内存运行 + MongoDB 全量持久化，重启不丢失
  * - 本地开发（无 MONGODB_URI）：JSON 文件持久化（data/db.json）
@@ -39,7 +39,7 @@ async function connectMongo() {
   if (mongoReady) return;
   const mongoose = require('mongoose');
   mongoose.set('strictQuery', false);
-  await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
+  await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 30000, socketTimeoutMS: 30000, connectTimeoutMS: 30000 });
   mongoCol = mongoose.connection.db.collection('faka_main');
   mongoReady = true;
   console.log('[db] MongoDB 已连接');
