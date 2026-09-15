@@ -864,7 +864,7 @@ router.put('/users/:id', auth.requireAdmin, (req, res) => {
 });
 
 /** 管理员调整用户余额（充值/扣款，用于开通分站支付） */
-router.put('/users/:id/balance', auth.requireAdmin, (req, res) => {
+router.put('/users/:id/balance', auth.requireAdmin, async (req, res) => {
   const { delta, reason } = req.body || {};
   const diff = Number(delta);
   if (!isFinite(diff) || diff === 0) return res.json(util.fail('请输入有效的调整金额'));
@@ -887,7 +887,7 @@ router.put('/users/:id/balance', auth.requireAdmin, (req, res) => {
     isRead: 0, createdAt: util.now()
   });
   db.save();
-  db.flushNow(); // 用户余额变更立即落盘
+  await db.flushNow(); // 用户余额变更立即落盘
   res.json(util.ok({ balance: u.balance }));
 });
 
@@ -1099,25 +1099,27 @@ router.get('/chat', auth.requireAdmin, (req, res) => {
   res.json(util.ok(list));
 });
 
-router.get('/chat/:userId', auth.requireAdmin, (req, res) => {
+router.get('/chat/:userId', auth.requireAdmin, async (req, res) => {
   const d = db.load();
   const uid = Number(req.params.userId);
   const list = d.chat.filter((c) => c.userId === uid).sort((a, b) => a.createdAt - b.createdAt);
   // 标记用户消息已读
   d.chat.forEach((c) => { if (c.userId === uid && c.role === 'user') c.read = 1; });
   db.save();
+  await db.flushNow();
   res.json(util.ok(list));
 });
 
-router.post('/chat/:userId/reply', auth.requireAdmin, (req, res) => {
+router.post('/chat/:userId/reply', auth.requireAdmin, async (req, res) => {
   const { content } = req.body || {};
   if (!content) return res.json(util.fail('回复内容不能为空'));
-  db.mutate((d) => {
-    d.chat.push({
-      id: util.nextId('chat'), userId: Number(req.params.userId), role: 'admin',
-      content: String(content).slice(0, 500), createdAt: util.now(), read: 1
-    });
+  const d = db.load();
+  d.chat.push({
+    id: util.nextId('chat'), userId: Number(req.params.userId), role: 'admin',
+    content: String(content).slice(0, 500), createdAt: util.now(), read: 1
   });
+  db.save();
+  await db.flushNow(); // 管理员回复立即落盘
   res.json(util.ok({ msg: '已发送' }));
 });
 
@@ -1382,7 +1384,7 @@ router.put('/branches/:id', auth.requireAdmin, (req, res) => {
 });
 
 /** 超级管理员：调整分站余额（正负均可，写流水） */
-router.put('/branches/:id/balance', auth.requireAdmin, (req, res) => {
+router.put('/branches/:id/balance', auth.requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
   const amount = Math.round(Number(req.body && req.body.amount) * 100) / 100;
   const desc = String((req.body && req.body.desc) || '').trim();
@@ -1410,7 +1412,7 @@ router.put('/branches/:id/balance', auth.requireAdmin, (req, res) => {
     });
   }
   db.save();
-  db.flushNow();
+  await db.flushNow();
   res.json(util.ok({ balance: b.balance }));
 });
 

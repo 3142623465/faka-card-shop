@@ -166,10 +166,10 @@ function nextId(entity) {
 }
 
 /** 立即落盘 */
-function flushNow() {
+async function flushNow() {
   if (!db || !dirty) return;
   if (USE_MONGO) {
-    saveToMongo().catch(() => {});
+    try { await saveToMongo(); } catch (e) { console.error('[db] flushNow失败:', e.message); }
   } else {
     saveToFile();
   }
