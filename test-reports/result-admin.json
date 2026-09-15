@@ -1,0 +1,351 @@
+﻿{
+  "pass": 67,
+  "fail": 2,
+  "results": [
+    {
+      "name": "POST /admin/login 默认账号登录",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "管理员错误密码被拒",
+      "status": "PASS",
+      "detail": "账号或密码错误"
+    },
+    {
+      "name": "未授权访问 admin API 被拒",
+      "status": "PASS",
+      "detail": "status=401"
+    },
+    {
+      "name": "用户 token 访问 admin API 被拒",
+      "status": "PASS",
+      "detail": "status=401"
+    },
+    {
+      "name": "GET /admin/stats 仪表盘",
+      "status": "PASS",
+      "detail": "users=29 orders=2"
+    },
+    {
+      "name": "仪表盘含近7天趋势",
+      "status": "PASS",
+      "detail": "trend=7"
+    },
+    {
+      "name": "仪表盘含热销TOP5",
+      "status": "PASS",
+      "detail": "top=0"
+    },
+    {
+      "name": "POST /admin/categories 新增分类",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/categories 新增子分类",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "PUT /admin/categories/:id 更新",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "分类上级不能是自己",
+      "status": "PASS",
+      "detail": "上级分类不能是自己"
+    },
+    {
+      "name": "POST /admin/products 新增自动发货商品",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/products 新增手动发货商品",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "新增商品-负价格处理",
+      "status": "FAIL",
+      "detail": "price=-100"
+    },
+    {
+      "name": "PUT /admin/products/:id 更新",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /admin/products 搜索",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/products/:id/cards 文本批量加卡密",
+      "status": "PASS",
+      "detail": "{\"code\":0,\"data\":{\"added\":4,\"msg\":\"成功添加 4 条卡密\"}}"
+    },
+    {
+      "name": "重复卡密去重(全部重复返回提示)",
+      "status": "PASS",
+      "detail": "{\"code\":1,\"msg\":\"没有可添加的卡密（已存在或内容为空）\"}"
+    },
+    {
+      "name": "卡密自动生成50条",
+      "status": "PASS",
+      "detail": "added=50"
+    },
+    {
+      "name": "卡密生成数量上限钳制(≤10000)",
+      "status": "PASS",
+      "detail": "added=10000"
+    },
+    {
+      "name": "GET /admin/products/:id/cards 未用卡密",
+      "status": "PASS",
+      "detail": "unused=10054"
+    },
+    {
+      "name": "手动商品加卡密被拒",
+      "status": "PASS",
+      "detail": "仅自动发货商品需要卡密"
+    },
+    {
+      "name": "POST /admin/banners 新增",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "PUT /admin/banners/:id 更新",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/coupons 满减券",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/coupons 折扣券",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/coupons 时间倒置被拒",
+      "status": "PASS",
+      "detail": "时间范围不正确"
+    },
+    {
+      "name": "POST /admin/faqs 新增",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "PUT /admin/faqs/:id 更新",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "前置：用户下单手动商品",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "GET /admin/orders 待发货列表",
+      "status": "PASS",
+      "detail": "total=1"
+    },
+    {
+      "name": "POST /admin/orders/:id/ship 发货",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "重复发货被拒",
+      "status": "PASS",
+      "detail": "仅待发货订单可发货"
+    },
+    {
+      "name": "已付款订单不能改价",
+      "status": "PASS",
+      "detail": "仅待付款订单可修改价格"
+    },
+    {
+      "name": "POST /admin/orders/:id/refund 退款",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "退款后状态 refunded",
+      "status": "PASS",
+      "detail": "refunded"
+    },
+    {
+      "name": "退款恢复手动库存",
+      "status": "PASS",
+      "detail": "qty=2"
+    },
+    {
+      "name": "已退款订单不能再退",
+      "status": "PASS",
+      "detail": "当前状态不可退款"
+    },
+    {
+      "name": "前置：用户提交售后",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /admin/aftersales 待处理列表",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/aftersales/:id/handle 同意退款",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "售后同意后订单已退款",
+      "status": "PASS",
+      "detail": "refunded"
+    },
+    {
+      "name": "重复处理售后被拒",
+      "status": "PASS",
+      "detail": "该售后单已处理"
+    },
+    {
+      "name": "GET /admin/users 搜索",
+      "status": "PASS",
+      "detail": "total=1"
+    },
+    {
+      "name": "PUT /admin/users/:id 调积分改昵称",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "用户积分已更新",
+      "status": "PASS",
+      "detail": "points=500"
+    },
+    {
+      "name": "PUT /admin/users/:id/balance 余额调整",
+      "status": "PASS",
+      "detail": "balance=100"
+    },
+    {
+      "name": "PUT /admin/users/:id 禁用用户",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "禁用后用户 token 失效",
+      "status": "PASS",
+      "detail": "status=401"
+    },
+    {
+      "name": "重新启用用户",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /admin/messages 全员广播",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /admin/settings",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "设置接口不泄露支付私钥",
+      "status": "PASS",
+      "detail": "wechatPrivateKey=hidden"
+    },
+    {
+      "name": "设置接口不泄露 xunhu 密钥",
+      "status": "PASS",
+      "detail": "xunhuAppSecret=hidden"
+    },
+    {
+      "name": "PUT /admin/settings 更新",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "设置持久化验证",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /admin/branch-prices",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "PUT /admin/branch-prices",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "负价格被拒",
+      "status": "PASS",
+      "detail": "专业分站价格无效"
+    },
+    {
+      "name": "POST /admin/branches 开通专业分站",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /admin/branches 列表",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "PUT /admin/branches/:id 停用",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "PUT /admin/branches/:id 启用",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "DELETE /admin/branches/:id 删除",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "DELETE /admin/products/:id 删除商品",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "DELETE /admin/products/:id 删除手动商品",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "DELETE /admin/categories/:id 删除分类(含子)",
+      "status": "FAIL",
+      "detail": ""
+    },
+    {
+      "name": "DELETE /admin/banners/:id",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "DELETE /admin/coupons/:id",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发卡网全模块代码审查报告</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232F6BFF'/%3E%3Ctext x='32' y='45' font-size='34' text-anchor='middle' fill='white' font-family='sans-serif'%3E审%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --bg: #F5F7FA; --card: #FFFFFF; --line: #E6EAF0;
+    --text: #1C2430; --text2: #5B6472; --text3: #8A94A6;
+    --primary: #2F6BFF; --primary-soft: #EAF1FF;
+    --orange: #FF6A00; --orange-soft: #FFF3E8;
+    --danger: #E5484D; --danger-soft: #FDECEC;
+    --warn: #D97706; --warn-soft: #FEF3E2;
+    --ok: #0E9F6E; --ok-soft: #E6F6F0;
+    --purple: #7C3AED; --purple-soft: #F1EBFE;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, #1B2A4A 0%, #243B6B 55%, #2F5BA8 100%); border-radius: 18px; color: #fff; padding: 34px 36px; position: relative; overflow: hidden; }
+  .hero::after { content: ''; position: absolute; right: -70px; top: -70px; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,.14), transparent 70%); }
+  .hero .tag { display: inline-block; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; font-size: 12px; padding: 3px 12px; letter-spacing: .5px; }
+  .hero h1 { font-size: 28px; font-weight: 800; margin: 14px 0 8px; letter-spacing: .5px; }
+  .hero p { font-size: 14px; color: rgba(255,255,255,.82); max-width: 720px; }
+  .hero .meta { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 20px; font-size: 13px; color: rgba(255,255,255,.75); }
+  .hero .meta b { color: #fff; font-weight: 600; }
+
+  /* Stat cards */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 22px 0; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .stat .num { font-size: 30px; font-weight: 800; line-height: 1.2; }
+  .stat .lb { font-size: 13px; color: var(--text2); margin-top: 4px; }
+  .stat.p0 .num { color: var(--danger); } .stat.p1 .num { color: var(--orange); } .stat.p2 .num { color: var(--warn); }
+  .stat.fixed .num { color: var(--ok); }
+
+  /* Section */
+  .sec { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 26px 28px; margin-bottom: 22px; }
+  .sec-h { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .sec-h .idx { width: 30px; height: 30px; border-radius: 9px; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+  .sec-h h2 { font-size: 20px; font-weight: 800; }
+  .sec-h .sub { font-size: 13px; color: var(--text3); margin-left: auto; }
+  .sec .lead { font-size: 14px; color: var(--text2); margin-bottom: 14px; }
+  .chart-box { width: 100%; }
+  #chart-dist { height: 380px; width: 100%; }
+
+  /* Issue cards */
+  .issue { border: 1px solid var(--line); border-left-width: 4px; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; background: #FCFDFE; }
+  .issue.p0 { border-left-color: var(--danger); }
+  .issue.p1 { border-left-color: var(--orange); }
+  .issue.p2 { border-left-color: var(--warn); }
+  .issue .i-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .issue .i-title { font-weight: 700; font-size: 15px; }
+  .lv { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; flex-shrink: 0; }
+  .lv.p0 { background: var(--danger-soft); color: var(--danger); }
+  .lv.p1 { background: var(--orange-soft); color: var(--orange); }
+  .lv.p2 { background: var(--warn-soft); color: var(--warn); }
+  .lv.fixed { background: var(--ok-soft); color: var(--ok); }
+  .issue .i-loc { font-size: 12px; color: var(--text3); font-family: Consolas, Monaco, monospace; background: #F1F3F7; padding: 2px 8px; border-radius: 6px; }
+  .issue .i-body { font-size: 13.5px; color: var(--text2); }
+  .issue .i-body p { margin: 6px 0; }
+  .issue .i-body b { color: var(--text); }
+  .issue .i-body .fix { color: var(--ok); font-weight: 600; }
+  .issue .i-body .phen { color: var(--danger); }
+
+  /* Tables */
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.tbl th, table.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  table.tbl th { background: #F7F9FC; font-weight: 600; color: var(--text2); white-space: nowrap; }
+  table.tbl td.mono { font-family: Consolas, Monaco, monospace; font-size: 12.5px; }
+
+  /* Timeline */
+  .tl { position: relative; padding-left: 34px; }
+  .tl::before { content: ''; position: absolute; left: 11px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+  .tl-item { position: relative; margin-bottom: 22px; }
+  .tl-item::before { content: ''; position: absolute; left: -28px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 3px solid #fff; box-shadow: 0 0 0 2px var(--primary); box-sizing: border-box; }
+  .tl-item .t-time { font-size: 13px; font-weight: 700; color: var(--primary); }
+  .tl-item .t-title { font-size: 15px; font-weight: 700; margin: 2px 0; }
+  .tl-item .t-desc { font-size: 13px; color: var(--text2); }
+  .tl-item .t-tags { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tl-item .t-tags span { font-size: 12px; padding: 1px 8px; border-radius: 6px; background: #F1F3F7; color: var(--text2); }
+
+  /* Module nav */
+  .mod-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .mod-nav a { font-size: 13px; color: var(--text2); text-decoration: none; background: var(--card); border: 1px solid var(--line); padding: 8px 16px; border-radius: 999px; display: inline-flex; align-items: center; min-height: 44px; }
+  .mod-nav a:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* SVG tree */
+  .tree-wrap { background: #FAFBFD; border: 1px solid var(--line); border-radius: 12px; padding: 18px; overflow-x: auto; }
+  .flow-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12.5px; color: var(--text2); margin-top: 12px; }
+  .flow-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+  .note { background: var(--warn-soft); border: 1px solid #F5D9A8; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #7C4A03; margin: 14px 0; }
+  .note b { color: #B45309; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } .hero { padding: 24px 22px; } .hero h1 { font-size: 22px; } .sec { padding: 20px 18px; } }
+  footer { text-align: center; color: var(--text3); font-size: 12.5px; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <div class="hero">
+    <span class="tag">前后端全模块代码审查</span>
+    <h1>发卡网 · 全模块审查报告</h1>
+    <p>覆盖数据预览（仪表盘）、商品、分类、卡密、订单、售后、用户、优惠券、支付、分站上下级、系统设置与前端交互。以当前代码为唯一依据，逐条给出问题定位、根因、影响与修复方案。</p>
+    <div class="meta">
+      <span>审查日期：<b>2026-09-15</b></span>
+      <span>项目路径：<b>D:\faka</b></span>
+      <span>审查文件：<b>后端 12 模块 + 前端 3 大入口</b></span>
+      <span>覆盖旧报告：<b>是（17 项已逐条复核）</b></span>
+    </div>
+  </div>
+
+  <!-- ============ STATS ============ -->
+  <div class="stats">
+    <div class="stat p0"><div class="num">3</div><div class="lb">P0 严重问题（资金/安全）</div></div>
+    <div class="stat p1"><div class="num">9</div><div class="lb">P1 高优先级（资金一致性/安全）</div></div>
+    <div class="stat p2"><div class="num">22</div><div class="lb">P2 中低优先级（体验/健壮性）</div></div>
+    <div class="stat fixed"><div class="num">15</div><div class="lb">旧报告问题已修复</div></div>
+  </div>
+
+  <!-- ============ 模块导航 ============ -->
+  <div class="mod-nav" id="mod-nav"></div>
+
+  <!-- ============ 执行摘要 ============ -->
+  <div class="sec">
+    <div class="sec-h"><span class="idx">1</span><h2>执行摘要</h2><span class="sub">Review Summary</span></div>
+    <div class="lead">整体架构清晰、功能完整，分站体系（邀请签名、层级上限、分成流水、提现审核）在近期迭代中已补齐，旧版 17 项审查结论大部分落地。但审查发现 <b style="color:var(--danger)">3 个资金级 P0</b>：真实支付失败会静默回退为"模拟支付立即发货"、当前线上配置仍开着沙箱（等于不收费）、支付回调在结算失败时把订单标为"已退款"却没有真实退款动作。</div>
+    <div class="note"><b>上线前必须处理的 3 件事：</b>① 关闭 paySandbox 沙箱并配置真实支付密钥；② 删除"真实支付失败回退模拟支付"分支；③ 支付回调加幂等 + 结算失败走真实退款/告警而不是改状态了事。</div>
+    <div class="lead">其次的高频风险集中在 <b>资金流水不完整（用户余额扣款无记录）</b>、<b>多分站混合购物车订单归属错乱</b>、<b>一级分站可击穿平台定价</b>、<b>退款恢复出"幽灵卡密"</b> 以及 <b>若干前端交互 bug</b>（售后驳回对话框点"取消"也会提交驳回）。详见分模块章节。</div>
+  </div>
+
+  <!-- ============ 问题分布 ============ -->
+  <div class="sec">
+    <div class="sec-h"><span class="idx">2</span><h2>问题分布总览</h2><span class="sub">按模块 × 优先级</span></div>
+    <div class="chart-box"><div id="chart-dist"></div></div>
+    <div class="lead" style="margin-top:14px">共 34 项问题：P0×3、P1×9、P2×22。支付与分站模块问题密度最高——支付涉及真实资金，分站涉及多级利益分配，这两块是本次审查的核心风险区。</div>
+  </div>
+
+  <!-- ============ 问题清单（按模块） ============ -->
+  <div class="sec">
+    <div class="sec-h"><span class="idx">3</span><h2>分模块问题清单</h2><span class="sub">34 items · 按优先级排序</span></div>
+    <div class="lead">每条问题含：级别、位置（文件:行）、现象、根因/影响、修复方案。行号以 2026-09-15 当前代码为准。</div>
+
+    <h3 id="m-支付" style="margin:18px 0 12px;font-size:16px">支付模块（含回调）</h3>
+
+    <div class="issue p0">
+      <div class="i-head"><span class="lv p0">P0</span><span class="i-title">真实支付下单失败被静默回退成"模拟支付并立即发货"</span><span class="i-loc">server/routes/user.js · /orders/:id/pay</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>wx/alipay/虎皮椒真实下单抛出异常后，代码 <code>catch</code> 后继续走到"模拟支付"分支，直接调用 <code>settlePaidOrder</code> 把订单置为已支付并发卡。</p>
+        <p><b>根因/影响：</b>攻击者可故意制造真实下单失败（超时、参数篡改、并发），免费拿到卡密；这是最直接的"白嫖"通道。</p>
+        <p><span class="fix">修复：</span>下单失败必须返回错误提示，禁止回退模拟支付；模拟支付仅允许在 <code>settings.paySandbox === true</code> 时使用，且要在代码里显式断言。</p>
+      </div>
+    </div>
+
+    <div class="issue p0">
+      <div class="i-head"><span class="lv p0">P0</span><span class="i-title">线上配置仍开启沙箱模式，全站支付不真实扣款</span><span class="i-loc">data/db.json · server/payments.js</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>当前 <code>db.json</code> 中 <code>paySandbox: true</code>；且 <code>payments.configured()</code> 在沙箱开启时直接返回 false，即使填了真实商户密钥也不生效。</p>
+        <p><b>根因/影响：</b>所有订单都会落入模拟支付，买家不付款也能拿货。若以当前配置直接上线，等于免费发放。</p>
+        <p><span class="fix">修复：</span>上线前必须关闭沙箱并完整配置微信/支付宝/虎皮椒密钥；<code>configured()</code> 逻辑改为"沙箱模式仅开发环境生效"，生产环境由密钥完整性决定。</p>
+      </div>
+    </div>
+
+    <div class="issue p0">
+      <div class="i-head"><span class="lv p0">P0</span><span class="i-title">支付回调无幂等保护，结算失败时置"refunded"却无真实退款</span><span class="i-loc">server/routes/pay.js · /notify/wechat /notify/alipay</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>① 微信/支付宝回调入口未先查订单状态，重复通知会重复进入结算流程（靠 settle 内部 status 校验兜底，但回调应直接幂等返回）；② <code>settlePaidOrder</code> 失败时把订单置为 <code>refunded</code> 并发站内消息"已拦截并发起退款"，但代码里没有调用任何真实退款接口。</p>
+        <p><b>根因/影响：</b>用户已付款却拿不到货时，系统假装"已退款"，实际钱没退，引发资损与客诉；微信侧订单不存在还返回 404 JSON，不符合微信要求的 SUCCESS/FAIL 约定，会持续重试。</p>
+        <p><span class="fix">修复：</span>回调入口统一幂等（订单非 pending 直接返回 SUCCESS）；结算失败改为告警 + 人工介入 + 调用退款 API；微信回调始终按协议返回。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">微信平台证书解密为死代码，未配置证书直接拒回调</span><span class="i-loc">server/payments.js</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span><code>wxDecryptResource</code> 中 <code>Buffer.from(resource.associated_data ? '' : '', 'utf8')</code> 恒为空串，解密逻辑不成立；未填平台证书时回调直接拒绝，且没有自动下载微信平台证书的能力。</p>
+        <p><span class="fix">修复：</span>按 APIv3 规范实现 AEAD_AES_256_GCM 解密（ciphertext 包含 nonce 前 12 字节），或接入证书自动下载；系统设置中提供平台证书下载引导。</p>
+      </div>
+    </div>
+
+    <h3 id="m-分站上下级" style="margin:24px 0 12px;font-size:16px">分站上下级模块（重点）</h3>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">购物车混入两个分站商品时，订单只归属第一个分站</span><span class="i-loc">server/routes/user.js · POST /orders（branchId 取值）</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>订单 <code>branchId</code> 用 <code>calc.goods.find(g =&gt; g.branchId).branchId</code> 只取第一个分站商品；但分成（<code>settle.creditBranchShare</code>）按每个商品的 branchId 分别入账。</p>
+        <p><b>根因/影响：</b>第二个分站的钱照拿，但在分站后台按 <code>order.branchId === 自己</code> 查不到该订单，无法发货、无法核销——分成与订单可见性脱节。</p>
+        <p><span class="fix">修复：</span>方案 A：下单时按分站拆成多条订单（每个分站一条）；方案 B：订单记录 <code>branchIds[]</code>，分站订单查询按"订单内包含本分站商品"过滤，发货只允许操作本分站的 goods 行。</p>
+      </div>
+    </div>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">一级分站价格没有平台价下限，可把下级价格设成 0</span><span class="i-loc">server/routes/branch.js · PUT /price；server/branch-sign.js · validatePriceBelow</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span><code>validatePriceBelow</code> 只做"当前价格 ≥ 上级价格"的上溯校验；一级分站 <code>parentId = 0</code>（上级是平台）时，没有与 <code>settings.branchProPrice / branchNormalPrice</code>（平台统一开通价）比较。</p>
+        <p><b>根因/影响：</b>一级专业分站可把专业/普通开通价设为 0，整条链路的下级开通费变成 0，平台与各级分站的收益结构被击穿。</p>
+        <p><span class="fix">修复：</span>parent 为空时下限取平台设置价：<code>pricePro &ge; settings.branchProPrice</code>、<code>priceNormal &ge; settings.branchNormalPrice</code>。</p>
+      </div>
+    </div>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">总站删除源商品后，分站商品价格下限失效（可无限降价）</span><span class="i-loc">server/routes/branch.js · PUT /branch/products/:id / POST /branch/products</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>分站改价时用 <code>d.products.find(src)</code> 实时找总站源商品；源商品被删除后 <code>src</code> 为空，<code>min</code> 退回商品自身价格，约束形同虚设。</p>
+        <p><b>根因/影响：</b>分站可在源商品下架/删除后任意降价，把下游价格打穿；同时上架新商品时也无法再校验旧下限。</p>
+        <p><span class="fix">修复：</span>上架/改价时把 <code>floorPrice</code>（上级同款价或总站价）快照固化到分站商品记录，改价只与快照比较，不依赖实时查源；源商品变动时提供"重新同步"刷新快照。</p>
+      </div>
+    </div>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">分站密码单向同步：分站改密不回写用户账号</span><span class="i-loc">server/routes/branch.js · PUT /password；server/routes/auth.js · syncBranchPassword</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>用户在前台改密码会同步到名下分站（<code>syncBranchPassword</code>）；但分站在后台改密码注释明确"不回写用户账号"。</p>
+        <p><b>根因/影响：</b>同一账号（邮箱）既是用户又是分站，两边密码可不同步。用户以为"同一个账号同一密码"，改完分站密码后前台登录仍是旧密码，容易困惑；反之用户改密码后分站密码被强制改掉，代理可能不知情。</p>
+        <p><span class="fix">修复：</span>双向同步：分站改密时若 <code>ownerId &gt; 0</code> 回写对应用户密码（并清理其会话）；或明确提示"两处密码独立"并在 UI 上区分。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">邀请链接协议取 req.protocol，反代后可能生成 http 链接；签名默认永久有效</span><span class="i-loc">server/routes/branch.js · GET /invite-link</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>拼接链接用 <code>req.protocol</code>，未配置 <code>trust proxy</code> 时经 Nginx 反代会得到 <code>http://</code>；<code>signInvite</code> 未显式传过期时间（exp=0 表示永久）。</p>
+        <p><span class="fix">修复：</span>启用 <code>app.set('trust proxy', 1)</code> 并优先取 <code>x-forwarded-proto</code>；邀请签名显式设置有效期（如 30 天）并在页面文案一致。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">数据库残留测试分站：ownerId=0 的一级分站"112"</span><span class="i-loc">data/db.json · branches[0]（id=2, parentId=0, ownerId=0）</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>当前库里有一个 <code>name=112, type=pro, parentId=0, ownerId=0</code> 的分站。它没有绑定用户，按现有规则<b>无法升级、无法用账号登录</b>，是上一轮报告中"管理员建站体系断裂"的活样本。</p>
+        <p><span class="fix">修复：</span>在管理端分站列表删除该测试分站，或补绑一个真实用户（<code>ownerEmail</code>）使其可登录、可升级。</p>
+      </div>
+    </div>
+
+    <h3 id="m-用户与认证" style="margin:24px 0 12px;font-size:16px">用户与认证模块</h3>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">用户余额扣款不写资金流水（开通/加入/升级分站）</span><span class="i-loc">server/routes/user.js · open-branch / join-branch；server/routes/branch.js · upgrade</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>用户余额在开通分站、加入下级分站、补差价升级时被扣减，但三处都不写 <code>balanceLogs</code>（只有分站侧有 <code>branchBalanceLogs</code>）。</p>
+        <p><b>根因/影响：</b>用户端无法核对余额去向，管理端对账缺少用户余额流水，扣错/重复扣款难以追溯。</p>
+        <p><span class="fix">修复：</span>统一新增用户余额流水表（类型：branch_open / branch_join / branch_upgrade / admin_adjust / refund），与分站流水对称；管理端余额调整也补记。</p>
+      </div>
+    </div>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">个人资料可直接修改邮箱且无查重 → 账号混淆/被盗风险</span><span class="i-loc">server/routes/auth.js · PUT /profile</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span><code>if (email !== undefined &amp;&amp; EMAIL_RE.test(email)) u.email = email;</code> 只校验格式，不查重、不做小写归一。而登录按 <code>u.email.toLowerCase() === acc</code> 匹配。</p>
+        <p><b>根因/影响：</b>用户 A 可把邮箱改成用户 B 的邮箱（大小写不同也能绕过 B 的匹配），之后 B 用该邮箱登录会直接进入 A 的账号；改完密码则 B 彻底失去账号。</p>
+        <p><span class="fix">修复：</span>改邮箱走验证码二次确认；统一 <code>toLowerCase()</code> 存储；查重（排除自己）；绑定邮箱仅通过 <code>/bind-email</code> 走验证码流程。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">登录成功后的限流 key 清除写错（清不掉）</span><span class="i-loc">server/routes/auth.js · POST /login（rateClear 调用）</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>写入用 <code>clientKey(req, 'pwd|' + acc)</code>（含 IP），清除用 <code>clientKey('pwd|' + acc)</code>（IP 位恒为 'x'）——key 不匹配，成功登录后计数不会清零，同一 IP 连续输错仍会触发 60 秒锁。</p>
+        <p><span class="fix">修复：</span>清除时同样传 <code>req</code>：<code>rateClear(clientKey(req, 'pwd|' + acc))</code>。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">重置密码邮件匹配大小写敏感</span><span class="i-loc">server/routes/auth.js · POST /send-reset-email</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>查询用户用 <code>u.email === email</code>（未 toLowerCase），而注册/登录侧都做了归一。用户资料里若曾写入带大写字母的邮箱（见上一问题），重置时会"该邮箱未绑定账号"。</p>
+        <p><span class="fix">修复：</span>统一 <code>(u.email || '').toLowerCase() === email.toLowerCase()</code>。</p>
+      </div>
+    </div>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">文件上传无内容嗅探，管理端允许 SVG 上传（存储型 XSS 向量）</span><span class="i-loc">server/routes/user.js · POST /upload；server/routes/admin.js · /admin/upload</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>上传仅按 <code>ext</code> 参数写文件，不校验文件头；管理端上传接受 svg，SVG 可内嵌 <code>&lt;script&gt;</code>/<code>onload</code>，之后以 <code>&lt;img src&gt;</code> 形式被前台/后台渲染。</p>
+        <p><b>根因/影响：</b>上传的 SVG 在用户浏览器上下文执行脚本可窃取登录态、改写页面；属于存储型 XSS。</p>
+        <p><span class="fix">修复：</span>用 magic bytes 嗅探真实类型并严格白名单（jpg/png/webp/gif）；禁止 svg 或对 svg 做消毒（移除 script/事件属性）；设置 CSP <code>img-src</code> 限制。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">注销账号不清理关联数据，与管理员删用户口径不一致</span><span class="i-loc">server/routes/user.js · DELETE /account</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>注销只删用户本体（及会话），orders/aftersales/chat/tickets/messages 全部残留且不标 <code>userDeleted</code>；而管理端删用户会标 <code>userDeleted</code>。残留数据在后台仍展示为正常用户。</p>
+        <p><span class="fix">修复：</span>统一走"软删除"：标 <code>userDeleted=1</code> + 清敏感信息 + 保留订单快照；管理端列表过滤已注销用户。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">售后申请可重复提交（仅拦截 pending）</span><span class="i-loc">server/routes/user.js · POST /orders/:id/aftersale</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>拦截条件 <code>['pending'].includes(a.status)</code> 只挡"处理中"；一笔订单被驳回或同意后仍可再次提交，可反复骚扰/重复退款风险。</p>
+        <p><span class="fix">修复：</span>同一订单仅允许一条售后记录（或允许"已驳回"后重新提交但去重处理中的记录，并在 UI 明确规则）。</p>
+      </div>
+    </div>
+
+    <h3 id="m-订单与售后" style="margin:24px 0 12px;font-size:16px">订单与售后管理</h3>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">退款恢复"幽灵卡密"：分站手动发货的卡密被错误回收</span><span class="i-loc">server/routes/admin.js · refundOrder</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>退款时把 <code>c.orderId === o.id</code> 的全部卡密置回 <code>unused</code>。但分站手动发货写入的卡密（<code>productId</code> 指向分站商品 id，不属总站卡池）也会被恢复为 unused。</p>
+        <p><b>根因/影响：</b>分站商品走 manual stock，卡密是手工填写的"一次性内容"；恢复后既不会重新入库（分站商品不查卡池），又变成孤儿数据，且若再次发货同一订单会重复给卡。</p>
+        <p><span class="fix">修复：</span>仅回收"总站卡池"的卡密（<code>c.source === 'pool'</code> 或 productId 属于总站商品）；分站手动卡密只做展示不回收；退款消息中说明卡密作废。</p>
+      </div>
+    </div>
+
+    <div class="issue p1">
+      <div class="i-head"><span class="lv p1">P1</span><span class="i-title">售后驳回对话框：点"取消"也会提交驳回</span><span class="i-loc">public/js/admin.js · 售后管理 data-no 处理</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span><code>const reply = (await dialog({...})) ? '' : ''</code>——三元两个分支都是空串，<code>if (reply === null) return</code> 永不成立。管理员点"再想想"取消后，请求照样发出并把售后驳回。</p>
+        <p><b>根因/影响：</b>误操作直接驳回用户退款申请，引发客诉；属于前端交互逻辑 bug。</p>
+        <p><span class="fix">修复：</span>先判返回值：<code>const r = await dialog(...); if (!r) return;</code> 驳回理由让用户在对话框内输入（dialog 支持输入时），而不是静默用默认文案。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">订单改价只改 payAmount，goodsAmount/couponAmount 不变，对账口径断裂</span><span class="i-loc">server/routes/admin.js · PUT /admin/orders/:id/price</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>改价仅 <code>o.payAmount = amount</code>，商品金额与优惠不变。若用户有优惠券，实际抵扣与展示不一致；销售额统计用 payAmount，而商品行合计用 goodsAmount，两边对不上。</p>
+        <p><span class="fix">修复：</span>记录 <code>priceAdjust</code>（调价差额），展示层统一按 payAmount 呈现，统计口径注明含调价；或同步调整 goodsAmount。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">自动发卡取卡无随机/无锁，极端并发可能重复发同一张卡</span><span class="i-loc">server/settle.js · 自动发货取卡</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>发卡用 <code>pool[i]</code> 顺序取卡，无锁、无随机。Node 单线程下同步段内安全，但涉及异步（回调重入、并发下单）时仍有重复发放窗口；且长期顺序取卡会让最早批次卡密先耗尽。</p>
+        <p><span class="fix">修复：</span>按商品原子取卡：<code>crypto.randomInt</code> 随机取 + 状态位 CAS；或为每个商品维护取卡游标并在事务中更新。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">自动确认/自动取消依赖接口触发（无定时任务）</span><span class="i-loc">server/routes/user.js · autoProcessOrders</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span><code>autoProcessOrders</code> 只在支付/查询等接口被调用时顺带执行。长时间无人访问时，超时订单不取消、超期订单不自动确认。</p>
+        <p><span class="fix">修复：</span>启动时挂 <code>setInterval</code>（如每 5 分钟）扫描执行；或引入 cron 任务。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">资金写入依赖 150ms 防抖落盘，进程崩溃可能丢最近数据</span><span class="i-loc">server/db.js · save / mutate；server/settle.js</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span><code>db.save</code> 带 150ms 防抖 + 异步写文件；结算、扣款、分成等资金路径没有显式 <code>flushNow()</code>。进程在防抖窗口内崩溃（或写盘失败），最近的订单/资金变动丢失。</p>
+        <p><span class="fix">修复：</span>资金与订单关键路径（settlePaidOrder / creditBranchShare / 提现审核 / 余额调整）在响应前调用 <code>db.flushNow()</code>；写盘失败时返回 500 而不是 200。</p>
+      </div>
+    </div>
+
+    <h3 id="m-商品/分类/卡密" style="margin:24px 0 12px;font-size:16px">商品 / 分类 / 卡密模块</h3>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">商品发货类型（auto↔manual）切换不处理库存/卡密</span><span class="i-loc">server/routes/admin.js · PUT /admin/products/:id</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>切换 type 时只改字段：auto→manual 后卡池卡密不再被使用，但库存没迁移；manual→auto 后原有 stock 直接归零（<code>stock: type==='manual' ? ... : 0</code>），若已售订单引用旧库存无影响，但管理员视角商品突然"无库存"。</p>
+        <p><span class="fix">修复：</span>切换时明确提示并二选一：auto→manual 把剩余卡密数量写入 stock；manual→auto 把 stock 清零并提示"改为卡池发放"。保留切换审计。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">优惠券金额/用户积分可设负数</span><span class="i-loc">server/routes/admin.js · POST/PUT coupons、PUT users</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>满减券 <code>amount: Number(amount) || 0</code> 无下限（可填 -100，下单反而加钱）；折扣券 PUT 时无 clamp（新建有 0.01-0.99）；用户积分 <code>u.points = Number(points)</code> 可负。</p>
+        <p><span class="fix">修复：</span>金额/积分统一 <code>Math.max(0, ...)</code>；折扣统一 clamp 到 [0.01, 0.99]；前端输入加 min。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">订单/购物车购买数量无硬上限（仅前端 999）</span><span class="i-loc">public/js/app.js · vCheckout buy 模式；server calcOrder</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>buy 模式数量直接来自 URL 参数，前端 stepper 上限 stock，但 URL 手改可绕过；后端仅 <code>isFinite</code> 校验、无数量上限与 stock 上限。</p>
+        <p><span class="fix">修复：</span>后端统一 <code>1 &le; qty &le; min(stock, 999)</code>，非法直接报错。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">验证码/订单号用 Math.random 生成（可预测）</span><span class="i-loc">server/util.js · genCode / genOrderNo</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span><code>Math.random()</code> 非加密随机。验证码可预测则短信/邮箱验证码爆破；订单号可预测则接口枚举（配合其他漏洞）风险上升。</p>
+        <p><span class="fix">修复：</span>改用 <code>crypto.randomInt()</code>（验证码）与 <code>crypto.randomBytes</code>（订单号），并保证订单号唯一性检查。</p>
+      </div>
+    </div>
+
+    <h3 id="m-数据概览" style="margin:24px 0 12px;font-size:16px">数据概览（仪表盘）与统计</h3>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">个人中心订单角标用 size=100 全量拉取统计，订单多时不准</span><span class="i-loc">public/js/app.js · vUser</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>用户中心待付款/待发货角标从 <code>/user/orders?size=100</code> 结果里前端过滤计数；超过 100 单后统计漏算。</p>
+        <p><span class="fix">修复：</span>后端提供 <code>/user/order-stats</code>（按状态 count）接口，前端直接取数。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">管理端消息群发仅能选前 50 个用户</span><span class="i-loc">public/js/admin.js · aMessages</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>发送对象下拉从 <code>/admin/users?size=50</code> 加载，用户超过 50 后无法选择后面的用户（"全部用户"仍可用）。</p>
+        <p><span class="fix">修复：</span>下拉改远程搜索/分页，或仅保留"全部/按等级"。</p>
+      </div>
+    </div>
+
+    <h3 id="m-前端通用" style="margin:24px 0 12px;font-size:16px">前端通用（体验 / 健壮性）</h3>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">轮播/聊天轮询定时器不随路由清理，页面切换后残留空转</span><span class="i-loc">public/js/app.js · vProduct / vService（swiperTimer / pollTimer）</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>商品页轮播 <code>setInterval</code> 与客服页 3 秒轮询 <code>pollTimer</code> 是全局变量；切走页面后旧定时器继续跑（操作已销毁的 DOM 或持续请求接口），产生多余请求与潜在报错。管理端 chatPoll 已做清理，用户端没有。</p>
+        <p><span class="fix">修复：</span>路由 render 前统一 <code>clearInterval</code>（与 admin 一致），或在视图卸载钩子里清理。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">支付宝 iframe sandbox 缺 allow-top-navigation，returnUrl 跳转受限</span><span class="i-loc">public/js/app.js · vPay 在线支付视图</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>iframe <code>sandbox="allow-forms allow-scripts allow-same-origin"</code> 不允许顶层导航，支付宝支付完成后 returnUrl 无法自动跳回，只能靠 10 分钟轮询兜底。</p>
+        <p><span class="fix">修复：</span>加 <code>allow-top-navigation</code>（或改 window.open 外链支付页）；同时注意 allow-scripts + allow-same-origin 同开的安全风险（避免引入第三方内容时组合使用）。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">支付页轮询 10 分钟超时，与订单 30 分钟自动取消不一致</span><span class="i-loc">public/js/app.js · vPay pollPay；settings.pendingCancelMinutes</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>前端扫码倒计时固定 10 分钟，到点提示"支付超时"；但订单实际 30 分钟才自动取消（设置可改）。10 分钟后用户仍在 pending 状态，文案与事实不符。</p>
+        <p><span class="fix">修复：</span>倒计时读取 <code>settings.pendingCancelMinutes</code>，或到点后提示"订单仍可继续支付"。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">管理端登录页硬编码默认账号密码提示</span><span class="i-loc">public/js/admin.js · aLoginView</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>登录页写死"默认账号：admin　默认密码：admin123"。若管理员从未改密码，等于把钥匙贴在大门上；即使改过，也诱导攻击者定向爆破。</p>
+        <p><span class="fix">修复：</span>删除提示；后端检测管理员仍是默认密码时返回警告并要求强制改密。</p>
+      </div>
+    </div>
+
+    <div class="issue p2">
+      <div class="i-head"><span class="lv p2">P2</span><span class="i-title">系统设置保存后整页刷新；wechatCertPath 被固定清空</span><span class="i-loc">public/js/admin.js · aSettings</span></div>
+      <div class="i-body">
+        <p><span class="phen">现象：</span>保存设置后 <code>location.reload()</code>；且提交体固定 <code>wechatCertPath: ''</code>，若后端支持证书路径配置会被每次保存覆盖为空。</p>
+        <p><span class="fix">修复：</span>改局部刷新；certPath 与内联证书二选一提交，不传即保留原值。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 上下级专题 ============ -->
+  <div class="sec">
+    <div class="sec-h"><span class="idx">4</span><h2>分站上下级体系专题</h2><span class="sub">Branches &amp; Hierarchy</span></div>
+    <div class="lead">用户特别关注"管理员管理专业、专业管理普通"的层级模型。当前实现：<b>平台（超级管理员）→ 专业分站 → 普通分站（普通分站可补差价升级为专业，继续开下级）</b>，最大层级由 <code>settings.branchMaxDepth</code>（默认 5）控制。注意：专业/普通是"类型"而非严格层级——一级分站既可以是专业也可以是普通；<b>普通分站是叶子节点，唯一升级通道是补差价升级为专业</b>。以下为该体系的资金流与关键问题。</div>
+
+    <div class="tree-wrap">
+      <svg viewBox="0 0 1000 430" style="width:100%;height:auto" role="img" aria-label="分站层级与资金流示意图">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8A94A6"/></marker>
+          <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0E9F6E"/></marker>
+        </defs>
+        <!-- 平台 -->
+        <rect x="360" y="14" width="280" height="56" rx="12" fill="#1B2A4A"/>
+        <text x="500" y="38" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">超级管理员（平台）</text>
+        <text x="500" y="58" text-anchor="middle" fill="#A9BCD8" font-size="12">设置开通价 · 审核提现 · 平台收入</text>
+        <!-- 一级专业 -->
+        <rect x="60" y="150" width="220" height="62" rx="12" fill="#F1EBFE" stroke="#7C3AED" stroke-width="1.5"/>
+        <text x="170" y="176" text-anchor="middle" fill="#5B21B6" font-size="14" font-weight="700">专业分站（一级）</text>
+        <text x="170" y="196" text-anchor="middle" fill="#8B5CF6" font-size="11.5">可开下级 · 自主定价（≥平台价）</text>
+        <!-- 一级普通 -->
+        <rect x="720" y="150" width="220" height="62" rx="12" fill="#E6F6F0" stroke="#0E9F6E" stroke-width="1.5"/>
+        <text x="830" y="176" text-anchor="middle" fill="#065F46" font-size="14" font-weight="700">普通分站（一级）</text>
+        <text x="830" y="196" text-anchor="middle" fill="#0E9F6E" font-size="11.5">叶子节点 · 补差价升级专业</text>
+        <!-- 二级普通（专业的下级） -->
+        <rect x="60" y="310" width="220" height="62" rx="12" fill="#EAF1FF" stroke="#2F6BFF" stroke-width="1.5"/>
+        <text x="170" y="336" text-anchor="middle" fill="#1D4ED8" font-size="14" font-weight="700">普通分站（二级）</text>
+        <text x="170" y="356" text-anchor="middle" fill="#2F6BFF" font-size="11.5">由上级专业分站开通/定价</text>
+        <!-- 升级路径 -->
+        <rect x="720" y="310" width="220" height="62" rx="12" fill="#FFF3E8" stroke="#FF6A00" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="830" y="336" text-anchor="middle" fill="#B45309" font-size="14" font-weight="700">升级为专业分站</text>
+        <text x="830" y="356" text-anchor="middle" fill="#FF6A00" font-size="11.5">补差价从分站余额扣除</text>
+        <!-- 连线 -->
+        <line x1="430" y1="70" x2="200" y2="148" stroke="#8A94A6" stroke-width="1.6" marker-end="url(#ar)"/>
+        <line x1="570" y1="70" x2="790" y2="148" stroke="#8A94A6" stroke-width="1.6" marker-end="url(#ar)"/>
+        <line x1="170" y1="212" x2="170" y2="308" stroke="#8A94A6" stroke-width="1.6" marker-end="url(#ar)"/>
+        <line x1="830" y1="212" x2="830" y2="308" stroke="#FF6A00" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arg)"/>
+        <!-- 资金流标签 -->
+        <rect x="250" y="88" width="150" height="34" rx="17" fill="#FFF" stroke="#0E9F6E"/>
+        <text x="325" y="110" text-anchor="middle" fill="#0E9F6E" font-size="11.5" font-weight="600">开通费进入上级余额</text>
+        <rect x="600" y="88" width="150" height="34" rx="17" fill="#FFF" stroke="#8A94A6"/>
+        <text x="675" y="110" text-anchor="middle" fill="#5B6472" font-size="11.5" font-weight="600">价格继承（≥上级）</text>
+        <rect x="230" y="250" width="200" height="34" rx="17" fill="#FFF" stroke="#2F6BFF"/>
+        <text x="330" y="272" text-anchor="middle" fill="#2F6BFF" font-size="11.5" font-weight="600">商品差价分成计入余额</text>
+        <rect x="560" y="250" width="220" height="34" rx="17" fill="#FFF" stroke="#FF6A00"/>
+        <text x="670" y="272" text-anchor="middle" fill="#B45309" font-size="11.5" font-weight="600">升级费补差价 → 平台/上级</text>
+        <!-- 底部说明 -->
+        <text x="500" y="408" text-anchor="middle" fill="#8A94A6" font-size="12">邀请链接带 HMAC 签名 · 层级上限 branchMaxDepth（默认 5）· 提现需平台审核</text>
+      </svg>
+    </div>
+    <div class="flow-legend">
+      <span><i style="background:#0E9F6E"></i>资金流入方向</span>
+      <span><i style="background:#8A94A6"></i>管理/继承关系</span>
+      <span><i style="background:#FF6A00;border:1px dashed #B45309"></i>升级路径</span>
+      <span><i style="background:#7C3AED"></i>专业分站</span>
+      <span><i style="background:#2F6BFF"></i>普通分站</span>
+    </div>
+
+    <h3 style="margin:22px 0 12px;font-size:16px">上下级体系现存问题</h3>
+    <div class="lead">以下 6 项是"上下级"维度特有的问题，已在上文清单中详述，此处汇总其上下级影响。</div>
+    <table class="tbl">
+      <thead><tr><th style="width:64px">级别</th><th style="width:220px">问题</th><th>对上下级体系的影响</th></tr></thead>
+      <tbody>
+        <tr><td><span class="lv p1" style="font-size:11px">P1</span></td><td>混购物车订单归属</td><td>第二分站收分成却看不到订单、无法发货，利益与责任脱节</td></tr>
+        <tr><td><span class="lv p1" style="font-size:11px">P1</span></td><td>一级分站无平台价下限</td><td>一级分站可把下级开通价设 0，整条链路收益击穿</td></tr>
+        <tr><td><span class="lv p1" style="font-size:11px">P1</span></td><td>源商品删除后 floor 失效</td><td>分站可无限降价，打穿下级价格约束链</td></tr>
+        <tr><td><span class="lv p1" style="font-size:11px">P1</span></td><td>分站密码单向同步</td><td>同一账号两套密码，代理与用户认知混乱</td></tr>
+        <tr><td><span class="lv p2" style="font-size:11px">P2</span></td><td>邀请链接 http/永久签名</td><td>反代后分享链接不可用；签名永久有效降低防伪强度</td></tr>
+        <tr><td><span class="lv p2" style="font-size:11px">P2</span></td><td>测试分站 ownerId=0 残留</td><td>不可登录、不可升级的"僵尸分站"仍在分站列表</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ============ 修复路线图 ============ -->
+  <div class="sec">
+    <div class="sec-h"><span class="idx">5</span><h2>修复路线图</h2><span class="sub">Roadmap</span></div>
+    <div class="tl">
+      <div class="tl-item">
+        <div class="t-time">上线前 · 立即处理</div>
+        <div class="t-title">堵住资金漏洞（3 项 P0）</div>
+        <div class="t-desc">关闭 paySandbox 并配置真实密钥；删除"真实支付失败回退模拟"分支；支付回调幂等 + 结算失败告警/真实退款 + 微信协议格式。同时：删除管理端登录页默认密码提示、确认默认 admin/admin123 已改。</div>
+        <div class="t-tags"><span>payments.js</span><span>user.js /pay</span><span>pay.js 回调</span><span>admin.js 登录页</span></div>
+      </div>
+      <div class="tl-item">
+        <div class="t-time">一周内</div>
+        <div class="t-title">资金一致性与数据安全（P1）</div>
+        <div class="t-desc">用户余额扣款补流水；混分站购物车拆单或分支归属；一级分站价格加平台下限；退款只回收卡池卡密；源商品删除后 floor 快照化；邮箱改绑走验证码+查重；分站密码双向同步；售后驳回对话框修 bug；上传内容嗅探 + 禁 SVG；资金路径 flushNow。</div>
+        <div class="t-tags"><span>user.js</span><span>branch.js</span><span>auth.js</span><span>admin.js 后端</span><span>settle.js</span></div>
+      </div>
+      <div class="tl-item">
+        <div class="t-time">一个月内 · 排期优化</div>
+        <div class="t-title">健壮性与体验（P2）</div>
+        <div class="t-desc">订单改价口径统一；售后去重；注销清理关联数据；优惠券/积分下限；商品类型切换处理库存；加密随机数；定时任务自动取消/确认；定时器清理；数量上限；订单统计接口；消息分页；支付页超时对齐；清理测试分站。</div>
+        <div class="t-tags"><span>util.js</span><span>app.js</span><span>admin.js 前端</span><span>定时任务</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 附录 A：旧报告对照 ============ -->
+  <div class="sec">
+    <div class="sec-h"><span class="idx">6</span><h2>附录 A · 第一轮分站报告 17 项复核结果</h2><span class="sub">对照当前代码</span></div>
+    <div class="lead">第一轮《分站模块审查报告》基于旧版代码，本次以当前代码逐条复核，绝大多数已修复。标注"部分修复"的 2 项在本报告中升级为 P1 残留问题（见上文章节）。</div>
+    <div class="table-wrap" style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr><th style="width:52px">编号</th><th style="width:150px">原问题</th><th style="width:90px">复核结果</th><th>当前状态说明</th></tr></thead>
+      <tbody>
+        <tr><td>P0-1</td><td>订单无分站归属</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>商品带 branchId、订单记录 branchId、分站订单/发货接口已实现</td></tr>
+        <tr><td>P0-2</td><td>分站余额无出口</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>提现申请/审核/打款 + 管理端余额调整 + 分站流水已实现</td></tr>
+        <tr><td>P0-3</td><td>管理员建站无法升级</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>支持 ownerEmail 绑定；upgrade 支持分站余额付费</td></tr>
+        <tr><td>P1-4</td><td>停用分站仍可登录/下单</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>requireBranchOrUser 校验 status</td></tr>
+        <tr><td>P1-5</td><td>停用/删除不级联</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>级联停用 + 清理会话 + 进行中订单校验</td></tr>
+        <tr><td>P1-6</td><td>分站价格无下限</td><td><span class="lv p1" style="font-size:11px">部分修复</span></td><td>上级价格校验已实现，但一级分站无平台价下限（见 P1）</td></tr>
+        <tr><td>P1-7</td><td>开通费有扣无收</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>platformIncome + platformLogs 已实现</td></tr>
+        <tr><td>P1-8</td><td>价格继承不一致</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>POST /branches 继承上级价格</td></tr>
+        <tr><td>P1-9</td><td>密码单向同步</td><td><span class="lv p1" style="font-size:11px">部分修复</span></td><td>用户改密回写分站已实现；分站改密仍不回写用户（见 P1）</td></tr>
+        <tr><td>P1-10</td><td>商品快照无 branchId</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>分站商品快照含 sourceId/branchId</td></tr>
+        <tr><td>P2-11</td><td>分站商品无同步</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>sync-products 一键同步</td></tr>
+        <tr><td>P2-12</td><td>分站无资金流水</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>branchBalanceLogs + 站内通知</td></tr>
+        <tr><td>P2-13</td><td>无层级上限</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>branchMaxDepth 默认 5，系统设置可调</td></tr>
+        <tr><td>P2-14</td><td>邀请链接无签名</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>HMAC 签名 + 防伪</td></tr>
+        <tr><td>P2-15</td><td>删除分站不清理</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>级联删除 + 商品清理</td></tr>
+        <tr><td>P2-16</td><td>分站商品无下限价展示</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>floorPrice 快照 + 管理端展示下限价</td></tr>
+        <tr><td>P2-17</td><td>分站无商品操作审计</td><td><span class="lv fixed" style="font-size:11px">已修复</span></td><td>改价/上下架/删除接口均含归属校验</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- ============ 附录 B：审查范围 ============ -->
+  <div class="sec">
+    <div class="sec-h"><span class="idx">7</span><h2>附录 B · 审查范围与方法</h2><span class="sub">Scope &amp; Method</span></div>
+    <div class="grid2">
+      <div>
+        <h3 style="font-size:15px;margin-bottom:10px">后端（server/）</h3>
+        <ul style="font-size:13.5px;color:var(--text2);padding-left:20px;line-height:2">
+          <li>routes/user.js（订单/购物车/售后/余额/分站开通/上传/注销）</li>
+          <li>routes/branch.js（分站登录/上下级/商品/订单/提现/升级）</li>
+          <li>routes/admin.js（全部管理接口/统计/退款/分站管理）</li>
+          <li>routes/auth.js（注册/登录/验证码/找回密码/资料）</li>
+          <li>routes/shop.js、routes/pay.js（支付回调）</li>
+          <li>settle.js（结算/发卡/分站分成）、payments.js（wx/alipay）</li>
+          <li>branch-sign.js（邀请签名/价格校验）、db.js（存储）、auth.js（会话）、util.js</li>
+          <li>mail.js、captcha.js、seed.js 等基础设施</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:15px;margin-bottom:10px">前端（public/js/）</h3>
+        <ul style="font-size:13.5px;color:var(--text2);padding-left:20px;line-height:2">
+          <li>app.js（用户端 SPA，3152 行，全部视图）</li>
+          <li>admin.js（管理端 SPA，1821 行，全部视图）</li>
+          <li>branch.js（分站独立后台，539 行）</li>
+          <li>api.js（请求封装/鉴权）、util.js（工具/转义）</li>
+        </ul>
+        <h3 style="font-size:15px;margin:14px 0 10px">数据现状（db.json）</h3>
+        <ul style="font-size:13.5px;color:var(--text2);padding-left:20px;line-height:2">
+          <li>用户 0 · 分站 1（测试残留"112"）· 商品 16 · 订单/卡密 0</li>
+          <li>paySandbox=true（未关）· payWechat/payAlipay=true · 虎皮椒未启用</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px"><b>方法说明：</b>以静态通读 + 逻辑推演为主，未对线上服务做渗透测试；所有行号基于 2026-09-15 当前代码。本报告不构成安全审计承诺，上线前建议再跑一轮白盒扫描与支付全链路回归（沙箱环境）。</div>
+  </div>
+
+  <footer>发卡网全模块代码审查报告 · 生成于 2026-09-15 · 34 项问题（P0×3 / P1×9 / P2×22）</footer>
+</div>
+
+<script>
+/* ===== 模块导航 ===== */
+(function () {
+  var anchors = ['支付', '分站上下级', '用户与认证', '订单与售后', '商品/分类/卡密', '数据概览', '前端通用'];
+  var nav = document.getElementById('mod-nav');
+  nav.innerHTML = anchors.map(function (a) { return '<a href="#m-' + encodeURIComponent(a) + '">' + a + '</a>'; }).join('');
+})();
+
+/* ===== 问题分布图 ===== */
+var distChart = echarts.init(document.getElementById('chart-dist'));
+var mods = ['支付', '分站上下级', '用户/认证', '订单/售后', '商品/分类/卡密', '数据概览', '前端通用'];
+var distOption = {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  legend: { data: ['P0 严重', 'P1 高', 'P2 中低'], top: 0 },
+  grid: { left: 40, right: 20, top: 40, bottom: 30 },
+  xAxis: { type: 'value', splitLine: { lineStyle: { color: '#EDF0F5' } } },
+  yAxis: { type: 'category', data: mods, axisLine: { show: false }, axisTick: { show: false } },
+  series: [
+    { name: 'P0 严重', type: 'bar', stack: 't', data: [3, 0, 0, 0, 0, 0, 0], itemStyle: { color: '#E5484D' }, barWidth: 22 },
+    { name: 'P1 高', type: 'bar', stack: 't', data: [0, 4, 3, 2, 0, 0, 0], itemStyle: { color: '#FF6A00' } },
+    { name: 'P2 中低', type: 'bar', stack: 't', data: [1, 2, 4, 4, 4, 2, 5], itemStyle: { color: '#D9A441' } }
+  ]
+};
+distChart.setOption(distOption);
+window.addEventListener('resize', function () { distChart.resize(); });
+</script>
+</body>
+</html>

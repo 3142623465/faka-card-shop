@@ -1,0 +1,226 @@
+﻿{
+  "pass": 43,
+  "fail": 1,
+  "results": [
+    {
+      "name": "GET /shop/banners",
+      "status": "PASS",
+      "detail": "[{\"id\":1,\"title\":\"新用户专享 50 积分\",\"image\":\"/img/banner1.svg\",\"linkType\":\"none\",\"link\":\"\",\"sort\":1,\"status\":1},{\"id\":2,\"titl"
+    },
+    {
+      "name": "GET /shop/categories",
+      "status": "PASS",
+      "detail": "count=7"
+    },
+    {
+      "name": "GET /shop/products 分页",
+      "status": "PASS",
+      "detail": "total=17"
+    },
+    {
+      "name": "GET /shop/products 按销量排序",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "销量排序降序正确",
+      "status": "PASS",
+      "detail": "680,520,430"
+    },
+    {
+      "name": "GET /shop/products 关键词搜索",
+      "status": "PASS",
+      "detail": "total=2"
+    },
+    {
+      "name": "GET /shop/products/:id",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /shop/products/:id 不存在",
+      "status": "PASS",
+      "detail": "商品不存在或已下架"
+    },
+    {
+      "name": "GET /shop/hot-keywords",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /shop/faqs",
+      "status": "PASS",
+      "detail": "count=8"
+    },
+    {
+      "name": "GET /shop/coupons",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "GET /shop/site",
+      "status": "PASS",
+      "detail": "siteName=324云系统"
+    },
+    {
+      "name": "GET /auth/captcha 返回svg+devCode",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /auth/send-code 注册场景",
+      "status": "PASS",
+      "detail": "devCode=716692"
+    },
+    {
+      "name": "注册-错误验证码被拒",
+      "status": "PASS",
+      "detail": "验证码错误或已过期"
+    },
+    {
+      "name": "POST /auth/register 成功注册",
+      "status": "PASS",
+      "detail": "user=测试用户"
+    },
+    {
+      "name": "重复注册被拒",
+      "status": "PASS",
+      "detail": "验证码错误或已过期"
+    },
+    {
+      "name": "POST /auth/login 密码登录",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "登录-错误密码被拒",
+      "status": "PASS",
+      "detail": "账号或密码错误"
+    },
+    {
+      "name": "POST /auth/login-code 验证码登录自动注册",
+      "status": "PASS",
+      "detail": "user=13799954883"
+    },
+    {
+      "name": "发送验证码 60 秒限频",
+      "status": "FAIL",
+      "detail": "第2次=发送过于频繁，请稍后再试"
+    },
+    {
+      "name": "手机号格式校验",
+      "status": "PASS",
+      "detail": "手机号格式不正确"
+    },
+    {
+      "name": "图形验证码错误被拒",
+      "status": "PASS",
+      "detail": "图形验证码错误，请刷新后重试"
+    },
+    {
+      "name": "GET /auth/me",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "未登录访问 /me 被拒",
+      "status": "PASS",
+      "detail": "status=401"
+    },
+    {
+      "name": "PUT /auth/password 修改密码",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "新密码可登录",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "旧密码不可登录",
+      "status": "PASS",
+      "detail": "账号或密码错误"
+    },
+    {
+      "name": "改密-原密码错误被拒",
+      "status": "PASS",
+      "detail": "原密码不正确"
+    },
+    {
+      "name": "send-code reset 场景",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "POST /auth/reset 找回密码",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "重置后新密码可登录",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "POST /auth/send-email-code",
+      "status": "PASS",
+      "detail": "devCode=560682"
+    },
+    {
+      "name": "POST /auth/register-email",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "POST /auth/login-email-code",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "POST /auth/send-reset-email",
+      "status": "PASS",
+      "detail": "devLink=#/reset?token=a009fb95afff4bf61947215f016066bf420b3117202a2119"
+    },
+    {
+      "name": "POST /auth/reset-email 令牌重置",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "重置令牌用后即焚",
+      "status": "PASS",
+      "detail": "链接已失效，请重新发送"
+    },
+    {
+      "name": "POST /auth/third-login",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "第三方用户 needBind 状态",
+      "status": "PASS",
+      "detail": "{\"id\":31,\"phone\":\"\",\"nickname\":\"微信用户3\",\"avatar\":\"/img/avatar.svg\",\"gender\":\"\",\"birthday\":\"\",\"email\":\"\",\"points\":0,\"level"
+    },
+    {
+      "name": "POST /auth/bind-phone 绑定手机",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "绑定已注册手机号被拒",
+      "status": "PASS",
+      "detail": "该手机号已被其他账号绑定"
+    },
+    {
+      "name": "DELETE /user/account 注销账号",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "注销后 token 失效",
+      "status": "PASS",
+      "detail": "status=401"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <circle cx="100" cy="86" r="52" fill="#EFF3F8"/>
+  <path d="M62 70 l-14 6 20 34 14 -6z" fill="#CBD5E1"/>
+  <path d="M138 70 l14 6 -20 34 -14 -6z" fill="#CBD5E1"/>
+  <rect x="62" y="64" width="76" height="48" rx="10" fill="none" stroke="#CBD5E1" stroke-width="6"/>
+  <text x="100" y="176" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#9AA7B8">暂无数据</text>
+</svg>

@@ -1,0 +1,116 @@
+﻿{
+  "pass": 19,
+  "fail": 3,
+  "results": [
+    {
+      "name": "伪造微信回调未导致订单发货",
+      "status": "PASS",
+      "detail": "status=pending"
+    },
+    {
+      "name": "伪造支付宝回调未导致订单发货",
+      "status": "PASS",
+      "detail": "status=pending"
+    },
+    {
+      "name": "伪造虎皮椒回调未导致订单发货",
+      "status": "PASS",
+      "detail": "status=pending"
+    },
+    {
+      "name": "正常支付成功",
+      "status": "PASS",
+      "detail": "{\"orderId\":12,\"payMode\":\"mock\",\"status\":\"shipped\",\"autoShipped\":true,\"cardsDeliv"
+    },
+    {
+      "name": "订单支付金额正确",
+      "status": "PASS",
+      "detail": "amount=50"
+    },
+    {
+      "name": "用户B购物车不含用户A商品",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "越权-用户B不能读用户A消息",
+      "status": "PASS",
+      "detail": "isRead=0"
+    },
+    {
+      "name": "分站 token 访问 admin 被拒",
+      "status": "PASS",
+      "detail": "status=401"
+    },
+    {
+      "name": "JSON 注入-工单创建正常",
+      "status": "PASS",
+      "detail": "ok"
+    },
+    {
+      "name": "XSS payload 存储",
+      "status": "PASS",
+      "detail": "reply ok"
+    },
+    {
+      "name": "XSS payload 原样存储（未过滤）",
+      "status": "PASS",
+      "detail": "stored=yes"
+    },
+    {
+      "name": "含HTML的订单备注可创建",
+      "status": "FAIL",
+      "detail": ""
+    },
+    {
+      "name": "第5次连续错误登录被限频",
+      "status": "PASS",
+      "detail": "l5=操作频繁，请 60 秒后再试"
+    },
+    {
+      "name": "验证码错误5次后限频",
+      "status": "PASS",
+      "detail": "last=操作频繁，请 60 秒后再试"
+    },
+    {
+      "name": "路径遍历被拦截或返回非敏感数据",
+      "status": "PASS",
+      "detail": "status=404"
+    },
+    {
+      "name": "路径遍历变体被拦截",
+      "status": "PASS",
+      "detail": "status=404"
+    },
+    {
+      "name": "非法参数返回友好错误",
+      "status": "PASS",
+      "detail": "发货类型不正确"
+    },
+    {
+      "name": "畸形路径友好404",
+      "status": "PASS",
+      "detail": "status=404"
+    },
+    {
+      "name": "库存3并发5购不超卖(最多3成功)",
+      "status": "PASS",
+      "detail": "success=3"
+    },
+    {
+      "name": "CORS 未放开任意源",
+      "status": "PASS",
+      "detail": "acao=null"
+    },
+    {
+      "name": "存在 CSP 或至少基础安全头",
+      "status": "FAIL",
+      "detail": "csp=null"
+    },
+    {
+      "name": "存在 X-Frame-Options",
+      "status": "FAIL",
+      "detail": "xfo=null"
+    }
+  ]
+}

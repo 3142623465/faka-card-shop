@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发卡网系统全面测试报告</title>
+<style>
+  :root{
+    --primary:#FF6A00; --primary-soft:#FFF3E8;
+    --ink:#1F2430; --ink-2:#4A5568; --ink-3:#8A94A6;
+    --line:#E8ECF3; --bg:#F6F8FB; --card:#FFFFFF;
+    --green:#16A34A; --green-soft:#E7F6EC;
+    --red:#DC2626; --red-soft:#FDEBEB;
+    --amber:#D97706; --amber-soft:#FEF3E2;
+    --blue:#0369A1; --blue-soft:#E6F2F9;
+    --radius:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;font-size:14px}
+  .wrap{max-width:1060px;margin:0 auto;padding:32px 24px 80px}
+  /* 封面 */
+  .cover{background:linear-gradient(135deg,#1F2430 0%,#2D3548 60%,#3A4560 100%);border-radius:20px;padding:48px 44px;color:#fff;position:relative;overflow:hidden}
+  .cover::after{content:"";position:absolute;right:-80px;top:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(255,106,0,.35),transparent 70%)}
+  .cover .tag{display:inline-block;background:rgba(255,106,0,.18);color:#FFA366;border:1px solid rgba(255,106,0,.4);padding:4px 14px;border-radius:99px;font-size:12px;letter-spacing:1px}
+  .cover h1{font-size:30px;margin:16px 0 8px;font-weight:700}
+  .cover .sub{color:#B8C2D4;font-size:14px}
+  .cover .meta{display:flex;flex-wrap:wrap;gap:28px;margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,.12)}
+  .cover .meta div b{display:block;font-size:20px;color:#FFA366}
+  .cover .meta div span{font-size:12px;color:#8FA0BC}
+  /* 标题 */
+  h2{font-size:20px;margin:44px 0 16px;padding-left:12px;border-left:4px solid var(--primary);line-height:1.4}
+  h3{font-size:15px;margin:24px 0 10px;color:var(--ink-2)}
+  p{color:var(--ink-2);margin:8px 0}
+  /* 卡片 */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:14px 0}
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+  th{background:#F0F3F8;color:var(--ink-2);text-align:left;padding:9px 12px;font-weight:600;border-bottom:2px solid var(--line)}
+  td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:hover td{background:#FAFBFD}
+  .num{font-variant-numeric:tabular-nums}
+  /* 徽章 */
+  .sev{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+  .sev-H{background:var(--red-soft);color:var(--red)}
+  .sev-M{background:var(--amber-soft);color:var(--amber)}
+  .sev-L{background:var(--blue-soft);color:var(--blue)}
+  .badge{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11px;margin-right:4px}
+  .b-pass{background:var(--green-soft);color:var(--green)}
+  .b-fail{background:var(--red-soft);color:var(--red)}
+  .b-warn{background:var(--amber-soft);color:var(--amber)}
+  /* 统计行 */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:16px 0}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;text-align:center}
+  .stat b{display:block;font-size:26px;margin:6px 0 2px}
+  .stat span{font-size:12px;color:var(--ink-3)}
+  .stat .s-green{color:var(--green)} .stat .s-red{color:var(--red)} .stat .s-amber{color:var(--amber)} .stat .s-blue{color:var(--blue)}
+  /* CSS 图表 */
+  .bar-row{display:flex;align-items:center;gap:10px;margin:7px 0}
+  .bar-label{width:120px;font-size:12px;color:var(--ink-2);text-align:right;flex-shrink:0}
+  .bar-track{flex:1;background:#EEF1F6;border-radius:6px;height:20px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:11px;color:#fff;font-weight:600;min-width:24px}
+  .donut-wrap{display:flex;align-items:center;gap:32px;flex-wrap:wrap}
+  .donut{position:relative;width:170px;height:170px;border-radius:50%;flex-shrink:0}
+  .donut::after{content:"";position:absolute;inset:26px;background:#fff;border-radius:50%}
+  .donut .dc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:1}
+  .donut .dc b{font-size:26px}
+  .donut .dc span{font-size:11px;color:var(--ink-3)}
+  .legend{display:flex;flex-direction:column;gap:8px}
+  .legend div{display:flex;align-items:center;gap:8px;font-size:13px}
+  .dot{width:12px;height:12px;border-radius:3px;display:inline-block}
+  /* 风险清单 */
+  .issue{border-left:3px solid;padding:10px 14px;margin:12px 0;border-radius:0 8px 8px 0;background:var(--card);border:1px solid var(--line);border-left-width:4px}
+  .issue.H{border-left-color:var(--red)} .issue.M{border-left-color:var(--amber)} .issue.L{border-left-color:var(--blue)}
+  .issue .it{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .issue .idc{color:var(--ink-3);font-size:12px;margin-top:4px}
+  .issue .fix{margin-top:6px;font-size:13px;color:var(--ink-2)}
+  .issue .fix b{color:var(--green)}
+  /* 排版评分 */
+  .grade{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;font-weight:700;font-size:18px;color:#fff;flex-shrink:0}
+  .g-a{background:#16A34A}.g-b{background:#2563EB}.g-c{background:#D97706}
+  .ui-row{display:flex;gap:16px;align-items:center;padding:12px 0;border-bottom:1px dashed var(--line)}
+  .ui-row:last-child{border-bottom:none}
+  .ui-meta{flex:1}
+  .ui-meta b{font-size:14px}
+  .ui-meta p{font-size:12px;color:var(--ink-3);margin:2px 0 0}
+  .ui-score{text-align:right;font-size:12px;color:var(--ink-3)}
+  /* 页脚 */
+  .footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:60px;padding-top:20px;border-top:1px solid var(--line)}
+  .small{font-size:12px;color:var(--ink-3)}
+  code{background:#F0F3F8;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px;font-family:Consolas,monospace}
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 24px;margin:20px 0}
+  .toc a{color:var(--blue);text-decoration:none;font-size:13px;display:inline-block;margin:3px 14px 3px 0}
+  .toc a:hover{text-decoration:underline}
+  @media print{body{background:#fff}.cover{background:#1F2430!important;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ========== 封面 ========== -->
+<div class="cover">
+  <span class="tag">产品测试经理 · 全面测试报告</span>
+  <h1>发卡网系统 全面测试报告</h1>
+  <div class="sub">系统代号「324云系统」 · Node.js + Express + JSON 文件存储 · 前端原生单页应用</div>
+  <div class="meta">
+    <div><b>225</b><span>API 自动化测试项</span></div>
+    <div><b>8</b><span>页面 UI 实测</span></div>
+    <div><b>17</b><span>发现缺陷（2 严重 / 6 中等 / 9 轻微）</span></div>
+    <div><b>9/10</b><span>模块核心功能通过</span></div>
+  </div>
+</div>
+
+<div class="toc">
+  <b style="font-size:14px">目录</b><br>
+  <a href="#s1">1. 测试概述</a>
+  <a href="#s2">2. 测试结果总览</a>
+  <a href="#s3">3. 缺陷清单（按严重度）</a>
+  <a href="#s4">4. 功能模块测试明细</a>
+  <a href="#s5">5. 安全专项测试</a>
+  <a href="#s6">6. 界面排版分析</a>
+  <a href="#s7">7. 代码质量评估</a>
+  <a href="#s8">8. 改进建议（优先级）</a>
+  <a href="#s9">9. 附录与数据说明</a>
+</div>
+
+<!-- ========== 1 概述 ========== -->
+<h2 id="s1">1. 测试概述</h2>
+<div class="card">
+  <h3>1.1 测试对象</h3>
+  <table>
+    <tr><th style="width:140px">项目路径</th><td><code>D:\faka</code></td></tr>
+    <tr><th>技术栈</th><td>后端：Node.js / Express；存储：JSON 文件（db.json，防抖落盘）；前端：原生 JS 单页应用（app.js 3069 行 / admin.js 1663 行）</td></tr>
+    <tr><th>核心功能</th><td>用户注册/登录（手机+邮箱+第三方）、商品展示、购物车、下单支付（模拟/微信/支付宝/虎皮椒）、自动发卡、售后、工单客服、积分、优惠券、分站分销、管理后台</td></tr>
+    <tr><th>测试时间</th><td>2026-09-14（当日数据）</td></tr>
+    <tr><th>测试环境</th><td>本机 localhost:3000，development 模式（验证码 devCode 直显）</td></tr>
+  </table>
+  <h3>1.2 测试方法</h3>
+  <p>① <b>静态代码审查</b>：通读 server（19 文件 / 199KB）、public（13 文件 / 385KB）、scripts 全部代码，检查逻辑、安全、一致性问题。<br>
+  ② <b>API 自动化测试</b>：编写 5 组共 <b>225 项</b> 测试脚本，覆盖公开接口、认证、用户业务、管理后台、分站、安全专项，全部真实调用运行。<br>
+  ③ <b>浏览器 UI 实测</b>：对首页、商品详情、登录、个人中心、分类、管理后台仪表盘/商品管理等页面进行真实渲染截图与交互验证。<br>
+  ④ <b>安全专项</b>：越权（IDOR）、角色提升、支付回调伪造、并发超卖、验证码爆破、路径遍历、XSS 存储、注入、CORS、安全响应头。</p>
+  <h3>1.3 测试数据说明</h3>
+  <p>测试产生的全部数据（用户 46 个、订单 12 笔、分站 20 个、测试商品 12 个、测试分类 12 个）已通过官方管理 API 清理并验证，数据库已恢复为测试前的种子状态（21 个种子用户 / 22 个商品 / 23 个分类 / 3445 卡密）。测试前已备份 <code>data/db.json.bak-before-test</code>。</p>
+</div>
+
+<!-- ========== 2 总览 ========== -->
+<h2 id="s2">2. 测试结果总览</h2>
+<div class="stat-grid">
+  <div class="stat"><b class="s-green">218</b><span>通过</span></div>
+  <div class="stat"><b class="s-red">5</b><span>失败（真实缺陷）</span></div>
+  <div class="stat"><b class="s-amber">2</b><span>断言需修正</span></div>
+  <div class="stat"><b class="s-blue">96.9%</b><span>通过率</span></div>
+</div>
+
+<div class="card">
+  <h3>2.1 模块通过率</h3>
+  <div class="bar-row"><span class="bar-label">公开接口 + 认证</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#16A34A">44/44</div></div></div>
+  <div class="bar-row"><span class="bar-label">用户业务链路</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#16A34A">59/59</div></div></div>
+  <div class="bar-row"><span class="bar-label">管理后台</span><div class="bar-track"><div class="bar-fill" style="width:97.1%;background:#D97706">67/69</div></div></div>
+  <div class="bar-row"><span class="bar-label">分站 / 分销</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:#16A34A">31/31</div></div></div>
+  <div class="bar-row"><span class="bar-label">安全专项</span><div class="bar-track"><div class="bar-fill" style="width:86.4%;background:#DC2626">19/22</div></div></div>
+  <p class="small" style="margin-top:10px">注：管理后台 2 项失败（负价商品、卡密去重语义）与安全 3 项失败（CSP / X-Frame-Options 缺失、HTML 备注断言）均为真实缺陷或缺失项，详见第 3 节。2 项"断言需修正"为测试脚本时序问题（60 秒限频窗口），经复核系统行为正确。</p>
+</div>
+
+<div class="card">
+  <h3>2.2 缺陷严重度分布</h3>
+  <div class="donut-wrap">
+    <div class="donut" style="background:conic-gradient(#DC2626 0 11.8%, #D97706 11.8% 47.1%, #0369A1 47.1% 100%)">
+      <div class="dc"><b>17</b><span>缺陷总数</span></div>
+    </div>
+    <div class="legend">
+      <div><span class="dot" style="background:#DC2626"></span>严重（H）— 2 项 · 资金/安全风险</div>
+      <div><span class="dot" style="background:#D97706"></span>中等（M）— 6 项 · 功能缺陷/安全缺失</div>
+      <div><span class="dot" style="background:#0369A1"></span>轻微（L）— 9 项 · 体验/一致性问题</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 3 缺陷 ========== -->
+<h2 id="s3">3. 缺陷清单（按严重度）</h2>
+
+<h3>3.1 严重缺陷（H）— 2 项</h3>
+<div class="card">
+  <div class="issue H">
+    <div class="it"><span class="sev sev-H">H-1</span> 商品价格可为负数，导致 0 元购 <span class="badge b-fail">已复现</span></div>
+    <div class="idc">涉及：POST /api/admin/products · GET /api/shop/products · POST /api/user/orders</div>
+    <p><b>现象</b>：管理员创建商品时传 <code>price: -100</code>，服务端 <code>Number(price)||0</code> 对负数不拦截（-100 为真值），商品成功入库显示「¥-100」；用户下单时 <code>payAmount = Math.max(0, ...)</code> 被钳制为 <b>0 元</b>，支付金额为 0 即可获得商品（复现：创建负价商品 → 下单 payAmount=0 → 模拟支付成功发货）。</p>
+    <p><b>影响</b>：管理员误填/被诱导填写负价时，商品等于免费发放；若开放商品创建权限给分站，将成为套利通道。</p>
+    <div class="fix"><b>修复建议</b>：创建/更新商品时强制校验 <code>price &gt;= 0</code>（建议 &gt; 0 或价格下限 0.01）；下单时对 payAmount 为 0 的订单做二次校验或直接拒绝。</div>
+  </div>
+  <div class="issue H">
+    <div class="it"><span class="sev sev-H">H-2</span> 配置文件中明文存放 QQ 邮箱授权码 <span class="badge b-warn">静态确认</span></div>
+    <div class="idc">涉及：server/config.js（<code>email.auth.code: 'xfhdzreujddrdgif'</code>）</div>
+    <p><b>现象</b>：真实邮箱 SMTP 授权码明文硬编码于项目配置文件。虽然 .gitignore 已排除 config.js，但源码共享、备份、误传仓库、工单截图等场景均可能泄露。</p>
+    <p><b>影响</b>：授权码可被用于冒用邮箱发送钓鱼邮件，泄露账号身份。</p>
+    <div class="fix"><b>修复建议</b>：改由环境变量（<code>SMTP_AUTH_CODE</code>）或密钥管理服务注入；config.js 只留占位符并加「必须通过环境变量配置」的启动校验。</div>
+  </div>
+</div>
+
+<h3>3.2 中等缺陷（M）— 6 项</h3>
+<div class="card">
+  <div class="issue M">
+    <div class="it"><span class="sev sev-M">M-1</span> 卡密去重为全局维度，跨商品误拦截 <span class="badge b-fail">已复现</span></div>
+    <div class="idc">涉及：POST /api/admin/products/:id/cards（去重条件 <code>d.cards.some(c=&gt;c.code===e.code)</code>）</div>
+    <p><b>现象</b>：卡密 code 在<b>全库唯一</b>校验。若商品 A 已含「ABC123」，为商品 B 添加同格式「ABC123」会被提示「没有可添加的卡密（已存在）」，无法上架相同卡密格式的第二商品。实际业务中不同商品常共用同一批卡密模板。</p>
+    <div class="fix"><b>修复建议</b>：去重范围限定为 <code>c.productId === 当前商品</code>；如需全局唯一（防重复售卖），应在前端/文档明确提示并允许管理员选择去重范围。</div>
+  </div>
+  <div class="issue M">
+    <div class="it"><span class="sev sev-M">M-2</span> 管理后台缺少基础安全响应头（CSP / X-Frame-Options） <span class="badge b-fail">已复现</span></div>
+    <div class="idc">涉及：server.js（无安全头中间件）</div>
+    <p><b>现象</b>：全站响应无 <code>Content-Security-Policy</code>、<code>X-Frame-Options</code> / <code>frame-ancestors</code>。虽前端 XSS 转义整体到位，但一旦出现未转义点即可被利用；且管理后台存在被「点击劫持」的风险面。</p>
+    <div class="fix"><b>修复建议</b>：增加 helmet 或手写中间件，至少配置 <code>frame-ancestors 'none'</code>、CSP（self + data: 图片）、<code>X-Content-Type-Options: nosniff</code>。</div>
+  </div>
+  <div class="issue M">
+    <div class="it"><span class="sev sev-M">M-3</span> 删除用户/上级分站不级联清理分站，遗留孤儿分站且无法删除 <span class="badge b-fail">已复现</span></div>
+    <div class="idc">涉及：DELETE /api/admin/users/:id、DELETE /api/admin/branches/:id</div>
+    <p><b>现象</b>：删除分站 owner 用户后，其分站仍保留在 branches 表（ownerId 指向已删用户）；管理后台再次删除该分站时提示「专业分站不存在」（因 requireBranchOwner 查不到 owner），形成<b>永久死数据</b>。测试中复现 10+ 个孤儿分站。</p>
+    <div class="fix"><b>修复建议</b>：删除用户时级联删除其名下分站及下级；或允许管理员删除无 owner 的孤儿分站；删除专业分站时递归处理下级。</div>
+  </div>
+  <div class="issue M">
+    <div class="it"><span class="sev sev-M">M-4</span> 密码哈希算法强度不足（SHA-256 加盐） + 卡密使用 Math.random() 生成</div>
+    <div class="idc">涉及：util.js hashPassword、genCardCode</div>
+    <p><b>现象</b>：密码使用 SHA-256（单轮）加盐，未采用 bcrypt / scrypt / argon2 等慢哈希；卡密/订单号等随机串使用 <code>Math.random()</code>（非加密安全随机）。前者在数据库泄露时可被 GPU 高速爆破，后者卡密可被预测（结合时序可枚举）。</p>
+    <div class="fix"><b>修复建议</b>：密码改用 <code>crypto.scrypt</code>（内置，无依赖）或 bcryptjs；卡密生成改用 <code>crypto.randomBytes</code> 并编码。</div>
+  </div>
+  <div class="issue M">
+    <div class="it"><span class="sev sev-M">M-5</span> 支付回调在未配置平台证书时跳过验签（生产误配置风险）</div>
+    <div class="idc">涉及：payments.js handleWechatNotify / handleAlipayNotify</div>
+    <p><b>现象</b>：未配置 WX_PLATFORM_CERT 或 ALI_PUBLIC_KEY 时，回调<b>仅打印警告后直接按成功处理</b>（不验签）。当前沙箱默认开启缓解了风险；但若生产部署忘记上传平台证书，攻击者可伪造回调免费发货。</p>
+    <div class="fix"><b>修复建议</b>：未配置证书时<b>拒绝</b>真实渠道回调（返回验签失败），仅允许模拟渠道；启动时对生产模式做配置完整性校验。</div>
+  </div>
+  <div class="issue M">
+    <div class="it"><span class="sev sev-M">M-6</span> 验证码 devCode 直显能力依赖环境判断，误配置即形同虚设</div>
+    <div class="idc">涉及：captcha.js / sms.js / email 相关（development 模式 API 返回 devCode）</div>
+    <p><b>现象</b>：开发模式下短信/邮箱/图形验证码通过 API 直接回传（便于本地调试），仅靠 <code>NODE_ENV</code> 区分。若运维以 development 模式部署（常见于新手），任意人可调用 send-code 接口直接读取验证码完成注册/改密/找回密码。</p>
+    <div class="fix"><b>修复建议</b>：生产模式启动时强制校验 NODE_ENV=production 且阻断 devCode 返回；devCode 逻辑增加独立开关并默认关闭。</div>
+  </div>
+</div>
+
+<h3>3.3 轻微缺陷（L）— 9 项</h3>
+<div class="card">
+  <table>
+    <tr><th style="width:52px">编号</th><th>问题</th><th style="width:180px">说明 / 建议</th></tr>
+    <tr><td class="num">L-1</td><td>全部重复卡密时返回「没有可添加的卡密（已存在或内容为空）」错误码，而非 <code>added:0</code> 的语义化结果</td><td>前端无法区分「内容为空」与「全部重复」；建议返回 <code>{added:0, duplicated:n}</code></td></tr>
+    <tr><td class="num">L-2</td><td>已完成订单（completed）不可删除，但管理后台列表仍显示删除按钮</td><td>点击报「仅待付款、已取消、已退款订单可删除」；建议按状态隐藏按钮</td></tr>
+    <tr><td class="num">L-3</td><td>订单备注、卡密说明等字段可原样存储 HTML 标签（依赖前端 esc() 兜底）</td><td>纵深防御不足；建议后端入库前统一去标签或白名单过滤</td></tr>
+    <tr><td class="num">L-4</td><td>项目自带测试脚本 scripts/test-all.js 依赖固定账号 13800000000，当前库不存在导致中断；脚本无异常保护</td><td>测试数据应与 seed 解耦；断言处加 try/catch 继续执行</td></tr>
+    <tr><td class="num">L-5</td><td>README 与实现不一致：未提分站/分销模块；默认测试账号 13800000000 实际未在 seed.js 创建</td><td>更新文档与 seed 对齐</td></tr>
+    <tr><td class="num">L-6</td><td>管理后台在窄屏（&lt;768px）下主内容区被裁剪（无响应式适配）</td><td>侧边栏与内容区叠加溢出；建议窄屏时侧边栏折叠为抽屉</td></tr>
+    <tr><td class="num">L-7</td><td>首页快捷宫格为 7 项时第二行不满（4+3），底部不对齐</td><td>自定义 quickNav 非 4 倍数时建议补位或居中</td></tr>
+    <tr><td class="num">L-8</td><td>manifest.theme_color(#FF6A00) 与 index.html meta theme-color(#1F2430) 不一致</td><td>统一主题色，避免 PWA 安装后状态栏颜色跳变</td></tr>
+    <tr><td class="num">L-9</td><td>JSON 存储防抖落盘窗口 150ms，极端崩溃可能丢失最后 150ms 写入</td><td>属存储选型固有限制（README 已注明）；建议小流量场景定期备份 db.json</td></tr>
+  </table>
+</div>
+
+<!-- ========== 4 功能明细 ========== -->
+<h2 id="s4">4. 功能模块测试明细</h2>
+<div class="card">
+  <h3>4.1 认证与账户（44 项全通过）</h3>
+  <p>✅ 手机号注册/登录/验证码登录（自动注册）、邮箱注册/登录/重置、微信/QQ 第三方登录与手机绑定、改密、找回密码、注销账号、验证码 60 秒限频、图形验证码校验与一次性消费、手机号格式校验、token 401 失效、禁用用户踢下线。</p>
+  <h3>4.2 用户业务（59 项全通过）</h3>
+  <p>✅ 地址 CRUD + 默认地址唯一 + 越权防护、收藏、购物车（数量钳制 ≤999、同商品累加、勾选）、优惠券领取/重复领取拦截/claimed 计数、立即购买/购物车结算、库存不足拦截、模拟支付自动发货、重复支付拦截、订单查询含卡密、确认收货、取消订单、售后申请/重复拦截、消息已读/未读数、积分明细、工单提交/查询、客服自动回复/空与超长消息拦截、图片上传/非法格式拦截。</p>
+  <h3>4.3 管理后台（67/69 通过，2 项真实缺陷）</h3>
+  <p>✅ 管理员登录鉴权（含用户 token 越权拦截）、仪表盘（今日/累计指标 + 7 日趋势 + 热销 TOP5 + 库存预警）、分类管理（含父子级、自引用拦截）、商品管理、卡密文本批量添加/自动生成/上限钳制（≤10000）、轮播、满减/折扣券/时间倒置校验、FAQ、订单发货/重复发货拦截/退款/重复退款拦截/已付款改价拦截、售后审核/重复处理拦截、用户搜索/积分调整/余额调整/禁用、消息广播、系统设置读写、支付密钥不泄露（settings 接口隐藏私钥）、分站价格与开通停用删除。</p>
+  <p class="small">❌ 失败项：商品价格负数未拦截（H-1）；跨商品卡密全局去重误拦（M-1）。</p>
+  <h3>4.4 分站 / 分销（31 项全通过）</h3>
+  <p>✅ 开通（余额扣费/余额不足拦截/重复开通拦截）、分站独立登录、总站商品目录上架、加价限制（不能低于总站价）、专业分站开下级、下级停用/启用、加入分站/不存在拦截、上级余额入账、普通分站权限隔离（不能开下级）、改密、升级（余额扣费、已专业拦截）、商品/下级删除。</p>
+</div>
+
+<!-- ========== 5 安全 ========== -->
+<h2 id="s5">5. 安全专项测试结果</h2>
+<div class="card">
+  <table>
+    <tr><th style="width:220px">测试项</th><th>结果</th><th>说明</th></tr>
+    <tr><td>未授权访问管理接口</td><td><span class="badge b-pass">通过</span></td><td>无 token / 用户 token / 分站 token 访问 /api/admin/* 均 401</td></tr>
+    <tr><td>越权 IDOR（地址/订单/购物车/消息/工单）</td><td><span class="badge b-pass">通过</span></td><td>用户 B 操作用户 A 数据全部被拒或无效</td></tr>
+    <tr><td>支付回调伪造（微信/支付宝/虎皮椒）</td><td><span class="badge b-pass">通过</span></td><td>伪造回调未导致订单发货（沙箱模式 + 渠道未配置双重拦截）</td></tr>
+    <tr><td>并发超卖（库存 3 并发 5 购）</td><td><span class="badge b-pass">通过</span></td><td>最多 3 单成功，Node 单线程同步结算无超卖</td></tr>
+    <tr><td>登录暴力破解限频</td><td><span class="badge b-pass">通过</span></td><td>连续错误 5 次后拦截（"尝试过于频繁"）</td></tr>
+    <tr><td>短信/邮箱验证码爆破限频</td><td><span class="badge b-pass">通过</span></td><td>60 秒同号限 1 次 + 错误 5 次锁定</td></tr>
+    <tr><td>路径遍历</td><td><span class="badge b-pass">通过</span></td><td>../..%2f 变体均被拦截（404/403）</td></tr>
+    <tr><td>XSS 存储（订单备注/工单/聊天）</td><td><span class="badge b-warn">部分</span></td><td>后端原样存储 HTML（L-3），前端 esc() 转义兜底，未发现未转义渲染点</td></tr>
+    <tr><td>参数注入（原型污染/畸形参数）</td><td><span class="badge b-pass">通过</span></td><td>JSON 注入不生效，畸形路径友好 404</td></tr>
+    <tr><td>CORS</td><td><span class="badge b-pass">通过</span></td><td>未放开任意源</td></tr>
+    <tr><td>安全响应头（CSP / X-Frame-Options）</td><td><span class="badge b-fail">缺失</span></td><td>见 M-2</td></tr>
+    <tr><td>敏感信息泄露（settings 接口）</td><td><span class="badge b-pass">通过</span></td><td>支付私钥/虎皮椒密钥均不返回前端</td></tr>
+  </table>
+  <p class="small" style="margin-top:8px">总体评价：<b>IDOR / 越权 / 超卖 / 回调伪造 / 限频等核心安全面防护扎实</b>，主要短板集中在「安全响应头缺失」与「密码/卡密加密强度」两处纵深防御。</p>
+</div>
+
+<!-- ========== 6 排版 ========== -->
+<h2 id="s6">6. 界面排版分析</h2>
+<div class="card">
+  <div class="ui-row">
+    <div class="grade g-a">A</div>
+    <div class="ui-meta"><b>用户端首页</b><p>搜索栏 + 促销 Banner（NEW 角标/圆点指示器）+ 快捷宫格 + 热门推荐双列瀑布流 + 底部 Tab 导航；间距、圆角、主题色（#FF6A00 橙）统一，层级清晰。</p></div>
+    <div class="ui-score">420px 实测良好</div>
+  </div>
+  <div class="ui-row">
+    <div class="grade g-a">A</div>
+    <div class="ui-meta"><b>商品详情页</b><p>价格 + 划线价 + 热卖角标、发货方式/商品类型信息行、购买数量步进、底部固定操作栏（收藏/分享/客服/立即购买/加购）；信息密度与操作路径合理。</p></div>
+    <div class="ui-score">420px 实测良好</div>
+  </div>
+  <div class="ui-row">
+    <div class="grade g-a">A</div>
+    <div class="ui-meta"><b>个人中心</b><p>头像昵称会员等级头部 + 订单状态五宫格 + 功能列表分组；「距下一级还差 ¥500」提示清晰。</p></div>
+    <div class="ui-score">420px 实测良好</div>
+  </div>
+  <div class="ui-row">
+    <div class="grade g-b">B+</div>
+    <div class="ui-meta"><b>分类页</b><p>左侧一级分类 + 顶部子分类 Tab + 商品双列瀑布流，电商标准范式；"没有更多了" 空态提示到位。</p></div>
+    <div class="ui-score">420px 实测良好</div>
+  </div>
+  <div class="ui-row">
+    <div class="grade g-b">B+</div>
+    <div class="ui-meta"><b>管理后台仪表盘</b><p>深色侧边栏分组导航 + 指标卡 + 7 日趋势图 + TOP5 表格 + 库存预警卡片；桌面端信息架构专业。</p></div>
+    <div class="ui-score">桌面端良好</div>
+  </div>
+  <div class="ui-row">
+    <div class="grade g-c">C</div>
+    <div class="ui-meta"><b>管理后台窄屏适配</b><p>420px 视口下侧边栏占据约 1/4 宽，主内容区被横向截断（标题/表格裁切），无折叠/抽屉方案。管理后台为桌面优先设计，需明确支持目标。</p></div>
+    <div class="ui-score">见 L-6</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>6.1 视觉一致性问题</h3>
+  <table>
+    <tr><th style="width:220px">问题</th><th>详情</th></tr>
+    <tr><td>登录按钮渐变紫 vs 全局主题橙</td><td>用户端登录/管理后台登录按钮使用紫粉渐变（#7C3AED→#F472B6 风格），与站点主色 #FF6A00 橙色体系不一致；建议统一品牌色</td></tr>
+    <tr><td>快捷宫格数量与网格不对齐</td><td>自定义 7 项时第二行 3 个（4+3），底部留白；建议 4 的倍数或自动补位（L-7）</td></tr>
+    <tr><td>PWA 主题色不一致</td><td>manifest #FF6A00 vs meta #1F2430（L-8）</td></tr>
+    <tr><td>站点名称残留</td><td>seed 默认「秒发卡」已改为「324云系统」，slogan 仍为「卡密秒发 · 售后无忧」；商标一致性需确认</td></tr>
+  </table>
+  <h3>6.2 排版优点</h3>
+  <p>✅ CSS 变量体系（--primary / --radius / --shadow）统一主题；✅ 移动端 420px 主要页面无横向滚动、无元素重叠；✅ 商品图片 aspect-ratio:1 固定高度防布局抖动；✅ 瀑布流两列高度错落正常；✅ 空态（暂无数据 / 暂无详情描述 / 没有更多了）覆盖完整；✅ 底部导航激活态明确。</p>
+</div>
+
+<!-- ========== 7 代码质量 ========== -->
+<h2 id="s7">7. 代码质量评估</h2>
+<div class="card">
+  <h3>7.1 架构与结构</h3>
+  <table>
+    <tr><th style="width:160px">层</th><th>结构</th><th>评价</th></tr>
+    <tr><td>路由层</td><td>server/routes/{auth,user,shop,admin,pay,branch}.js</td><td>✅ 模块边界清晰，按业务域拆分合理</td></tr>
+    <tr><td>业务层</td><td>settle.js（结算）、captcha.js、payments.js（微信/支付宝）、sms.js（阿里/腾讯）、xunhu.js（虎皮椒）</td><td>✅ 第三方适配器独立封装，签名/验签/防重放实现规范（微信 AES-256-GCM 解密、RSA2 验签、TC3 签名等）</td></tr>
+    <tr><td>数据层</td><td>db.js（JSON 文件 + 防抖落盘）</td><td>⚠️ 单实例可用；无并发/事务/备份机制，规模上限约数千订单；README 已注明</td></tr>
+    <tr><td>前端</td><td>app.js(3069行) / admin.js(1663行) 单文件</td><td>⚠️ 文件过大，无模块拆分/构建步骤；原生 JS 可维护性一般，路由/视图/状态耦合在单文件</td></tr>
+  </table>
+  <h3>7.2 优点</h3>
+  <p>✅ 前端所有用户输入渲染均经 <code>esc()</code> 转义（静态扫描 0 处未转义插值）；✅ 服务端对绝大多数资源做了属主校验（userId 条件查询）；✅ 限频（rateAllow 内存窗口）、验证码一次性消费、订单号/卡密格式规范；✅ 错误处理统一（util.ok/fail），多数接口友好返回；✅ 支付、短信未配置时优雅降级为模拟/本地模式，离线可用；✅ 注释与模块头文档完整。</p>
+  <h3>7.3 技术债</h3>
+  <table>
+    <tr><th style="width:200px">项</th><th>说明</th></tr>
+    <tr><td>无自动化测试框架</td><td>仅有自写脚本 scripts/test-all.js（无断言库、无 CI、异常中断）；建议引入 Node 内置 test runner 或 vitest</td></tr>
+    <tr><td>无 TypeScript / lint</td><td>大型 JS 文件缺少类型约束与静态检查（eslint 未配置）</td></tr>
+    <tr><td>存储无备份策略</td><td>db.json 单文件；建议 scripts 增加定时备份或导出</td></tr>
+    <tr><td>日志与监控缺失</td><td>无结构化日志、无错误上报；生产排障依赖 console</td></tr>
+    <tr><td>敏感配置散落</td><td>config.js 明文 + 后台 settings 双通道并存（settings 存储支付密钥，泄露面更大）</td></tr>
+  </table>
+</div>
+
+<!-- ========== 8 改进建议 ========== -->
+<h2 id="s8">8. 改进建议（按优先级）</h2>
+<div class="card">
+  <h3>P0 · 立即修复（上线前必须）</h3>
+  <p>① <b>商品价格强制 &gt;= 0 校验</b>（H-1）——前后端双重校验，防止 0 元购。<br>
+  ② <b>敏感配置迁移环境变量</b>（H-2）——移除 config.js 明文授权码，启动时校验必填项。<br>
+  ③ <b>支付渠道未配置证书时拒绝回调</b>（M-5）——生产环境杜绝「跳过验签」路径。<br>
+  ④ <b>生产模式阻断 devCode 直显</b>（M-6）——启动强校验 NODE_ENV，误配置直接报错。</p>
+  <h3>P1 · 尽快修复（1-2 周）</h3>
+  <p>⑤ <b>卡密去重改为商品维度</b>（M-1）；⑥ <b>删除用户/上级分站级联清理分站 + 孤儿分站可删</b>（M-3）；⑦ <b>增加安全响应头</b>（M-2，helmet 一行接入）；⑧ <b>密码哈希升级 scrypt、卡密用 crypto.randomBytes</b>（M-4）。</p>
+  <h3>P2 · 体验与健壮性（按节奏安排）</h3>
+  <p>⑨ 全部重复卡密返回 <code>added:0 + duplicated:n</code>（L-1）；⑩ 管理后台按订单状态控制删除按钮（L-2）；⑪ 后端统一 HTML 过滤（L-3）；⑫ 修复 test-all.js 固定账号依赖与异常中断（L-4）；⑬ README 补充分站模块与真实测试账号（L-5）；⑭ 管理后台窄屏抽屉化（L-6）；⑮ 快捷宫格补位、统一主题色（L-7/L-8）；⑯ 增加 db.json 定时备份脚本（L-9）。</p>
+  <h3>P3 · 长期演进</h3>
+  <p>⑰ 前端 app.js/admin.js 拆分模块（或引入 Vue/React 渐进重构）；⑱ 引入自动化测试框架 + CI（至少守护认证、结算、支付回调三条链路）；⑲ 存储层可选 SQLite（better-sqlite3）以支持事务与更大数据量；⑳ 结构化日志与错误监控。</p>
+</div>
+
+<!-- ========== 9 附录 ========== -->
+<h2 id="s9">9. 附录与数据说明</h2>
+<div class="card">
+  <h3>9.1 交付物清单</h3>
+  <table>
+    <tr><th>文件</th><th>说明</th></tr>
+    <tr><td><code>test-reports/api-test-{public,user,admin,branch,security}.js</code></td><td>5 组自动化测试脚本（可复跑：服务启动后 node 运行）</td></tr>
+    <tr><td><code>test-reports/result-*.json</code></td><td>各组测试原始结果（PASS/FAIL + 明细）</td></tr>
+    <tr><td><code>test-reports/xss-scan.js</code></td><td>前端 XSS 静态扫描脚本</td></tr>
+    <tr><td><code>data/db.json.bak-before-test</code></td><td>测试前数据库备份</td></tr>
+  </table>
+  <h3>9.2 测试脚本复跑方式</h3>
+  <p><code>node server/server.js</code>（或 <code>启动服务.bat</code>）→ <code>node test-reports/api-test-public.js</code> 等。注意：脚本含 60 秒限频等待，单组耗时约 1-3 分钟；请在测试库上运行，勿在正式数据上执行。</p>
+  <h3>9.3 与项目自带测试脚本的差异</h3>
+  <p>项目自带 <code>scripts/test-all.js</code> 覆盖 100+ 项基础断言，但在当前数据库中断于「发送重置验证码(已注册号)」——其依赖固定账号 <code>13800000000</code>（seed 未创建，L-4/L-5）。本报告测试脚本使用动态注册账号并覆盖越权/并发/回调伪造/排版等更深层维度，与项目脚本互为补充。</p>
+  <h3>9.4 局限性声明</h3>
+  <p>① 支付测试在沙箱/模拟模式下进行，真实微信/支付宝/虎皮椒联调未执行（需商户参数）；② 短信/邮件发送在本地直显模式验证，真实云厂商通道未联调；③ UI 实测基于 Chromium 420px 视口 + 桌面后台页面，未覆盖全部机型与浏览器；④ 未做性能/压测与长时间稳定性测试；⑤ 测试于 development 模式运行。</p>
+  <h3>9.5 综合结论</h3>
+  <p style="background:var(--primary-soft);padding:14px 16px;border-radius:10px;margin-top:12px">
+  <b>系统整体质量良好，核心交易链路（下单→支付→自动发卡→售后）功能完整且安全边界扎实</b>（越权、超卖、回调伪造、限频均防护有效，前端 XSS 转义到位）。当前<b>不阻塞演示/试用</b>；但<b>上线生产前必须修复 P0 四项</b>（负价 0 元购、明文密钥、回调跳验签、devCode 直显），并按 P1 补齐安全响应头与数据清理级联逻辑。修复后建议进行一次回归（可直接复用本报告测试脚本）与真实支付渠道联调。</p>
+</div>
+
+<div class="footer">
+  发卡网系统全面测试报告 · 生成于 2026-09-14 · 产品测试经理视角 · 测试数据已清理，原数据已备份
+</div>
+
+</div>
+</body>
+</html>

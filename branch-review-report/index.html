@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发卡网 · 分站模块代码审查报告</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%237C3AED'/%3E%3Cpath d='M7 12h10M12 7l5 5-5 5' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6FA; --card:#FFFFFF; --ink:#1F2430; --ink2:#5B6472; --ink3:#8A94A6;
+    --line:#E7EAF0; --primary:#7C3AED; --primary-2:#0F6DFF; --green:#0E9F6E; --amber:#D97706; --red:#EF4444;
+    --p0:#DC2626; --p1:#EA580C; --p2:#2563EB;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",-apple-system,sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;font-size:14px}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px 80px}
+  /* ===== 头部 ===== */
+  header{background:linear-gradient(135deg,#1E1B4B 0%,#4C1D95 45%,#7C3AED 100%);color:#fff;padding:56px 0 0}
+  .hd-inner{max-width:1120px;margin:0 auto;padding:0 20px 44px}
+  .hd-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);padding:6px 14px;border-radius:999px;font-size:12.5px;letter-spacing:.5px}
+  .hd-tag b{color:#FDE68A}
+  h1{font-size:30px;line-height:1.35;margin:18px 0 10px;font-weight:800}
+  .hd-sub{color:rgba(255,255,255,.82);font-size:14.5px;max-width:760px}
+  .hd-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .hd-meta span{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);padding:6px 14px;border-radius:10px;font-size:12.5px;color:rgba(255,255,255,.9)}
+  /* ===== 结论摘要 ===== */
+  .verdict{margin:-26px auto 0;position:relative;z-index:2}
+  .verdict-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 28px;box-shadow:0 8px 30px rgba(30,27,75,.08)}
+  .verdict-card h2{font-size:17px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .verdict-card .lead{font-size:14.5px;color:var(--ink2);margin-bottom:6px}
+  .verdict-card .lead b{color:var(--p0)}
+  .verdict-list{margin-top:14px;display:grid;gap:8px}
+  .verdict-list li{list-style:none;padding-left:22px;position:relative;font-size:13.5px;color:var(--ink2)}
+  .verdict-list li::before{content:"";position:absolute;left:4px;top:9px;width:8px;height:8px;border-radius:50%;background:var(--amber)}
+  /* ===== 统计 ===== */
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0 6px}
+  .stat-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .stat-card .num{font-size:30px;font-weight:800;line-height:1.1}
+  .stat-card .lb{font-size:12.5px;color:var(--ink3);margin-top:4px}
+  .num.p0{color:var(--p0)} .num.p1{color:var(--p1)} .num.p2{color:var(--p2)}
+  /* ===== 通用区块 ===== */
+  section{margin-top:44px}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px}
+  .sec-head .idx{font-size:13px;font-weight:800;color:#fff;background:var(--primary);width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;top:4px}
+  .sec-head h2{font-size:20px;font-weight:800}
+  .sec-head .en{color:var(--ink3);font-size:12px;letter-spacing:1px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+  /* ===== 图表行 ===== */
+  .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .chart-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px 8px}
+  .chart-box h3{font-size:14.5px;margin-bottom:4px}
+  .chart-box .tip{font-size:12px;color:var(--ink3);margin-bottom:8px}
+  .chart{width:100%;height:230px}
+  @media(max-width:760px){.chart-row{grid-template-columns:1fr}}
+  /* ===== 系统图 ===== */
+  .arch-wrap{overflow-x:auto}
+  .arch-note{font-size:12px;color:var(--ink3);margin-top:10px;padding:10px 14px;background:#FAFAFD;border:1px dashed var(--line);border-radius:10px}
+  /* ===== 问题表格 ===== */
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:920px}
+  colgroup col.c-no{width:56px} col.c-sev{width:76px} col.c-layer{width:80px} col.c-loc{width:150px} col.c-desc{width:auto} col.c-fix{width:300px}
+  thead th{background:#F3F4F8;font-size:12.5px;color:var(--ink2);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);position:sticky;top:0}
+  tbody td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px;color:var(--ink2)}
+  tbody tr:hover{background:#FAF9FE}
+  td .no{font-weight:800;color:var(--ink);font-size:14px}
+  .tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+  .tag.p0{background:#FEE2E2;color:#B91C1C}
+  .tag.p1{background:#FFEDD5;color:#C2410C}
+  .tag.p2{background:#DBEAFE;color:#1D4ED8}
+  .tag.fe{background:#EDE9FE;color:#6D28D9}
+  .tag.be{background:#DCFCE7;color:#15803D}
+  .tag.full{background:#E0F2FE;color:#0369A1}
+  td .loc{font-family:Consolas,"Courier New",monospace;font-size:11.5px;color:var(--primary-2);background:#EEF2FF;border-radius:6px;padding:2px 6px;display:inline-block;margin:2px 0;word-break:break-all}
+  td .t{font-weight:700;color:var(--ink);font-size:13.5px;margin-bottom:4px}
+  td .fx{color:var(--green)}
+  td .fx b{color:var(--ink)}
+  /* ===== 时间轴 ===== */
+  .timeline{display:grid;gap:0}
+  .tl-item{display:grid;grid-template-columns:150px 34px 1fr;gap:0}
+  .tl-item .when{text-align:right;padding:16px 12px 16px 0;font-weight:800;color:var(--primary);font-size:14px}
+  .tl-item .when small{display:block;font-weight:400;color:var(--ink3);font-size:11.5px}
+  .tl-axis{position:relative;display:flex;justify-content:center}
+  .tl-axis .dot{width:14px;height:14px;border-radius:50%;background:#fff;border:4px solid var(--primary);margin-top:24px;z-index:1}
+  .tl-axis::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--line)}
+  .tl-item:last-child .tl-axis::before{display:none}
+  .tl-item .body{padding:12px 0 20px 18px}
+  .tl-item .body .b-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .tl-item .body h4{font-size:14.5px;margin-bottom:6px}
+  .tl-item .body ul{margin:8px 0 0;padding-left:18px;font-size:12.8px;color:var(--ink2)}
+  .tl-item .body li{margin:3px 0}
+  .phase-chip{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:6px;margin-left:8px;vertical-align:2px}
+  .phase-chip.p0{background:#FEE2E2;color:#B91C1C}
+  .phase-chip.p1{background:#FFEDD5;color:#C2410C}
+  .phase-chip.p2{background:#DBEAFE;color:#1D4ED8}
+  @media(max-width:640px){.tl-item{grid-template-columns:86px 26px 1fr}.tl-item .when{font-size:12px;padding-right:8px}}
+  /* ===== 附录 ===== */
+  .files{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+  .file-chip{background:#FAFAFD;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .file-chip .fn{font-family:Consolas,"Courier New",monospace;font-size:12.5px;font-weight:700;color:var(--ink)}
+  .file-chip .fd{font-size:11.5px;color:var(--ink3);margin-top:2px}
+  .footer{margin-top:48px;text-align:center;color:var(--ink3);font-size:12px;border-top:1px solid var(--line);padding-top:20px}
+  .pill-legend{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+  .pill-legend span{font-size:12px;color:var(--ink2);background:#F3F4F8;border:1px solid var(--line);padding:4px 10px;border-radius:999px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-inner">
+    <div class="hd-tag">代码审查报告 · CODE REVIEW · <b>v1.0</b></div>
+    <h1>发卡网系统「分站」模块审查报告</h1>
+    <p class="hd-sub">围绕分站（代理商）体系的上下级关系、资金流、商品分销与前后端实现，逐文件核对后给出问题定位、影响评估与改造建议。审查范围覆盖后端 <b>server/routes/branch.js、admin.js、user.js、shop.js、settle.js、auth.js</b> 与前端 <b>public/js/branch.js、app.js、admin.js</b>。</p>
+    <div class="hd-meta">
+      <span>项目目录：D:\faka</span>
+      <span>数据库：JSON 文件 / MongoDB 双模式</span>
+      <span>审查方式：静态代码走查</span>
+      <span>共发现 17 项问题</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== 结论摘要 ===== -->
+  <div class="verdict">
+    <div class="verdict-card">
+      <h2>结论摘要</h2>
+      <p class="lead">分站模块的「招募-开通-升级」主链路（上下级关系、邀请链接、余额扣款）基本可用，测试脚本 <span style="font-family:monospace">scripts/test-branch-products.js</span> 覆盖了主要正向流程。但存在 <b>3 项 P0 级结构性缺陷</b>，会导致整个分站模式无法闭环：</p>
+      <ul class="verdict-list">
+        <li><b>卖货不赚钱</b>：分站店铺的商品售卖与分站收益完全脱钩——订单不记录归属、分站没有任何订单/发货/卡密接口，分站上架商品卖出去后收不到一分钱，也管不了自己的单。</li>
+        <li><b>赚了提不出</b>：分站余额只有进账没有出口——无提现、无转出、无消费场景，管理端也无法调整分站余额，且所有资金变动都没有流水记录。</li>
+        <li><b>管理员建的分站是"半残"体系</b>：管理员开通的分站 ownerId=0，其下普通分站永远无法升级为专业分站；两条创建下级路径（邀请链接 vs 后台直开）的价格继承规则还不一致。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 统计 ===== -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="num p0">3</div><div class="lb">P0 阻断级 · 功能无法闭环</div></div>
+    <div class="stat-card"><div class="num p1">7</div><div class="lb">P1 高危级 · 权限/资金/一致性</div></div>
+    <div class="stat-card"><div class="num p2">7</div><div class="lb">P2 中危级 · 健壮性/体验</div></div>
+    <div class="stat-card"><div class="num" style="color:var(--primary)">17</div><div class="lb">问题总数</div></div>
+    <div class="stat-card"><div class="num" style="color:var(--green)">12</div><div class="lb">后端为主（含全栈）</div></div>
+  </div>
+
+  <!-- ===== 图表 ===== -->
+  <section>
+    <div class="sec-head"><span class="idx">1</span><div><h2>问题分布</h2><div class="en">ISSUE DISTRIBUTION</div></div></div>
+    <div class="chart-row">
+      <div class="chart-box">
+        <h3>按严重程度</h3>
+        <div class="tip">P0 阻断级 / P1 高危级 / P2 中危级</div>
+        <div id="chart-sev" class="chart"></div>
+      </div>
+      <div class="chart-box">
+        <h3>按影响层</h3>
+        <div class="tip">后端（业务逻辑/接口）/ 前端（页面与交互）/ 全栈</div>
+        <div id="chart-layer" class="chart"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 系统现状图 ===== -->
+  <section>
+    <div class="sec-head"><span class="idx">2</span><div><h2>分站体系现状 · 上下级与资金流</h2><div class="en">ARCHITECTURE &amp; MONEY FLOW</div></div></div>
+    <div class="card">
+      <div class="arch-wrap">
+      <svg viewBox="0 0 1080 470" width="100%" style="min-width:880px" role="img" aria-label="分站上下级关系与资金流示意图">
+        <defs>
+          <marker id="arrG" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#0E9F6E"/></marker>
+          <marker id="arrR" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#DC2626"/></marker>
+          <marker id="arrB" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2563EB"/></marker>
+        </defs>
+        <!-- 层级：超级管理员 -->
+        <g>
+          <rect x="430" y="18" width="220" height="52" rx="12" fill="#1E1B4B"/>
+          <text x="540" y="41" text-anchor="middle" fill="#fff" font-size="15" font-weight="700">超级管理员（总站）</text>
+          <text x="540" y="59" text-anchor="middle" fill="#C7D2FE" font-size="11">ownerId=0 · 无 parentId</text>
+        </g>
+        <!-- 一级分站 -->
+        <g>
+          <rect x="80" y="150" width="250" height="64" rx="12" fill="#fff" stroke="#7C3AED" stroke-width="1.6"/>
+          <text x="205" y="174" text-anchor="middle" fill="#4C1D95" font-size="13.5" font-weight="700">一级分站（专业/普通）</text>
+          <text x="205" y="194" text-anchor="middle" fill="#6B7280" font-size="10.5">来源A：管理员开通 ownerId=0</text>
+          <text x="205" y="207" text-anchor="middle" fill="#6B7280" font-size="10.5">来源B：用户自助开通 ownerId=用户</text>
+          <line x1="540" y1="70" x2="215" y2="150" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arrB)"/>
+          <text x="372" y="112" text-anchor="middle" fill="#2563EB" font-size="11">管理员后台开通 / 用户 open-branch</text>
+        </g>
+        <!-- 二级分站 -->
+        <g>
+          <rect x="430" y="290" width="250" height="64" rx="12" fill="#fff" stroke="#0E9F6E" stroke-width="1.6"/>
+          <text x="555" y="314" text-anchor="middle" fill="#065F46" font-size="13.5" font-weight="700">二级分站（下级）</text>
+          <text x="555" y="334" text-anchor="middle" fill="#6B7280" font-size="10.5">来源A：专业站后台直开（普通）</text>
+          <text x="555" y="347" text-anchor="middle" fill="#6B7280" font-size="10.5">来源B：邀请链接 join（普通/专业）</text>
+          <line x1="215" y1="214" x2="535" y2="290" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arrB)"/>
+          <text x="330" y="262" text-anchor="middle" fill="#2563EB" font-size="11">parentId=一级分站</text>
+        </g>
+        <!-- 三级 -->
+        <g>
+          <rect x="790" y="290" width="250" height="64" rx="12" fill="#fff" stroke="#D97706" stroke-width="1.6" stroke-dasharray="5 4"/>
+          <text x="915" y="314" text-anchor="middle" fill="#92400E" font-size="13.5" font-weight="700">三级…N 级分站</text>
+          <text x="915" y="334" text-anchor="middle" fill="#6B7280" font-size="10.5">层级无上限（可无限嵌套）</text>
+          <text x="915" y="347" text-anchor="middle" fill="#DC2626" font-size="10.5">P2-14：缺少层级上限</text>
+          <line x1="680" y1="322" x2="790" y2="322" stroke="#2563EB" stroke-width="1.6" marker-end="url(#arrB)"/>
+        </g>
+        <!-- 资金流：正常收款 -->
+        <g>
+          <path d="M680 150 C 760 150, 700 240, 672 285" fill="none" stroke="#0E9F6E" stroke-width="1.8" stroke-dasharray="7 4" marker-end="url(#arrG)"/>
+          <text x="758" y="196" fill="#0E9F6E" font-size="11">开通/升级费 → 上级分站余额 ✓</text>
+        </g>
+        <!-- 资金流：消失 -->
+        <g>
+          <path d="M180 148 C 120 120, 120 80, 180 70" fill="none" stroke="#DC2626" stroke-width="1.8" stroke-dasharray="7 4" marker-end="url(#arrR)"/>
+          <text x="24" y="62" fill="#DC2626" font-size="11">一级开通费 / 顶层升级差价：扣了用户余额，无人收款、无流水 ✗</text>
+        </g>
+        <!-- 商品流 -->
+        <g>
+          <path d="M620 40 C 700 60, 720 120, 700 150" fill="none" stroke="#2563EB" stroke-width="1.8" stroke-dasharray="3 4" marker-end="url(#arrB)"/>
+          <text x="700" y="78" fill="#2563EB" font-size="11">总站商品 → 分站上架（快照复制）</text>
+          <text x="700" y="94" fill="#DC2626" font-size="10.5">售价下限=上级同款价</text>
+        </g>
+        <!-- 卖货流 -->
+        <g>
+          <rect x="430" y="400" width="620" height="52" rx="12" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.4"/>
+          <text x="740" y="421" text-anchor="middle" fill="#9A3412" font-size="13" font-weight="700">顾客在分站店铺下单 → 走普通订单 → 总站管理员发货</text>
+          <text x="740" y="440" text-anchor="middle" fill="#C2410C" font-size="11.5">订单无 branchId、分站无订单接口、无销售分成 —— 分站卖货收不到钱（P0-1）</text>
+          <line x1="555" y1="354" x2="700" y2="400" stroke="#EA580C" stroke-width="1.6" marker-end="url(#arrR)"/>
+        </g>
+        <!-- 分站余额出口 -->
+        <g>
+          <rect x="60" y="400" width="330" height="52" rx="12" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.4"/>
+          <text x="225" y="421" text-anchor="middle" fill="#991B1B" font-size="13" font-weight="700">分站余额：只有进账，没有出口</text>
+          <text x="225" y="440" text-anchor="middle" fill="#B91C1C" font-size="11.5">无提现 / 无转出 / 无消费 / 无流水（P0-2）</text>
+          <line x1="215" y1="290" x2="225" y2="400" stroke="#DC2626" stroke-width="1.6" stroke-dasharray="7 4" marker-end="url(#arrR)"/>
+        </g>
+      </svg>
+      </div>
+      <div class="arch-note">注：上图为企业架构「示意」，用于说明上下级归属与资金/商品流向，非精确度量。实线箭头=归属/上架关系；绿色虚线=资金入账上级；红色虚线=资金消失或收益断链；蓝色虚线=商品与数据流。层级上限、价格下限、停用级联等问题在图中以红色标注。</div>
+      <div class="pill-legend">
+        <span>开通费：用户余额 →（一级）无人收款 ✗</span>
+        <span>加入费：用户余额 → 上级分站余额 ✓</span>
+        <span>升级差价：用户余额 → 上级分站余额（顶层无人收款 ✗）</span>
+        <span>销售款：买家 → 总站，分站 0 分成 ✗</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 问题清单 ===== -->
+  <section>
+    <div class="sec-head"><span class="idx">3</span><div><h2>问题清单（17 项）</h2><div class="en">ISSUE REGISTER</div></div></div>
+    <div class="card" style="padding:12px 16px 16px">
+      <div class="pill-legend">
+        <span style="background:#FEE2E2;border-color:#FCA5A5;color:#B91C1C">P0 阻断：功能无法闭环，建议优先处理</span>
+        <span style="background:#FFEDD5;border-color:#FDBA74;color:#C2410C">P1 高危：权限/资金/一致性缺陷</span>
+        <span style="background:#DBEAFE;border-color:#93C5FD;color:#1D4ED8">P2 中危：健壮性/体验问题</span>
+      </div>
+      <div class="table-wrap">
+      <table>
+        <colgroup><col class="c-no"><col class="c-sev"><col class="c-layer"><col class="c-loc"><col class="c-desc"><col class="c-fix"></colgroup>
+        <thead><tr><th>#</th><th>级别</th><th>层</th><th>位置</th><th>问题与影响</th><th>修改建议</th></tr></thead>
+        <tbody>
+
+        <tr><td><span class="no">1</span></td><td><span class="tag p0">P0</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/user.js</span><br><span class="loc">routes/settle.js</span><br><span class="loc">routes/branch.js</span></td>
+          <td><div class="t">分站商品售卖与分站收益完全脱钩</div>订单创建（calcOrder/orders）不携带 branchId；分站商品统一复制为 manual 类型，但分站没有任何订单查询、发货、卡密管理接口。顾客在分站店铺下单 → 总站管理员发货，分站收不到分成、看不到订单。<br><b>影响：</b>分站"开店卖货"形同虚设，商业模式无法成立。</td>
+          <td class="fx"><b>核心修复：</b>① orders.goods 快照与 order 增加 branchId；② 新增分站订单列表/详情接口（按 branchId 过滤）；③ 设计差价分佣（上架价−成本价）结算进分站余额并记流水；④ 若定位仅为"拉新分销"，则移除分站商品模块，避免误导。</td></tr>
+
+        <tr><td><span class="no">2</span></td><td><span class="tag p0">P0</span></td><td><span class="tag full">全栈</span></td>
+          <td><span class="loc">routes/branch.js</span><br><span class="loc">routes/admin.js</span><br><span class="loc">public/js/branch.js</span></td>
+          <td><div class="t">分站余额无出口：不可提现、不可消费、不可被管理端调整</div>join/upgrade 入账 branch.balance，但全系统无提现接口、无余额转出、无消费场景；管理端只有用户余额调整接口（PUT /users/:id/balance），没有分站余额调整；所有分站资金变动均无流水（balanceLogs 仅覆盖用户）。<br><b>影响：</b>分销收益无法变现，模式不可持续；财务零审计。</td>
+          <td class="fx"><b>资金闭环：</b>① 增加分站提现申请（分站发起 → 管理员审核打款）与提现记录表；② 管理端增加分站余额调整接口；③ 新增 branchBalanceLogs 流水，记录 join/upgrade/提现/调整全部变动。</td></tr>
+
+        <tr><td><span class="no">3</span></td><td><span class="tag p0">P0</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/admin.js:1079</span><br><span class="loc">routes/branch.js:191</span><br><span class="loc">routes/branch.js:100</span></td>
+          <td><div class="t">管理员创建的分站体系断裂：无法升级、无法绑定用户</div>管理员开通分站固定 ownerId=0；专业分站后台直开的普通分站（POST /branches）不写 ownerId。而 upgrade 路由要求 owner 必须存在，否则报"分站关联用户不存在"——管理员体系下的普通分站永远无法升级为专业分站。管理员也无法将分站绑定到用户账号（无此功能）。<br><b>影响：</b>最常见的"管理员建站"场景下升级功能不可用；用户端/独立后台双轨数据不统一。</td>
+          <td class="fx">① 管理员开通分站时可选关联用户（手机/邮箱）或提供事后绑定接口；② upgrade 对无 owner 分站改为从 branch.balance 扣款或先要求绑定；③ 统一两条创建路径的数据结构（ownerId、价格字段）。</td></tr>
+
+        <tr><td><span class="no">4</span></td><td><span class="tag p1">P1</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">server/auth.js:58</span><br><span class="loc">routes/admin.js:1111</span></td>
+          <td><div class="t">停用分站不生效：已有会话仍可继续操作</div>requireBranchOrUser 对 branch 角色只查存在性、不校验 status===0；停用分站也不清理 sessions（对比：用户禁用时 admin.js 会踢下线且 requireUser 校验 status）。<br><b>影响：</b>被停用分站可用旧 token 继续上架商品、管理下级、继续收下级费用，停用形同虚设。</td>
+          <td class="fx">① requireBranchOrUser 的 branch 分支增加 status===0 → 401；② 停用/删除分站时清理其全部 sessions（含子站）；③ 与用户禁用的行为对齐。</td></tr>
+
+        <tr><td><span class="no">5</span></td><td><span class="tag p1">P1</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/branch.js:128</span><br><span class="loc">routes/admin.js:1111</span></td>
+          <td><div class="t">停用/删除不级联子树</div>停用专业分站只改自身 status，其下级分站仍正常运营（可登录、开店、拉人、收款）；若直接下级本身是专业分站（邀请链接可开 pro 子站），它的下级也不受影响。<br><b>影响：</b>治理失控，被停用团队可继续运作并扩张。</td>
+          <td class="fx">① 停用/删除时递归收集整棵子树一并处理；② 前端确认弹窗明确提示级联范围；③ 明确停用语义（级联停用 or 仅限自身）。</td></tr>
+
+        <tr><td><span class="no">6</span></td><td><span class="tag p1">P1</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/branch.js:166</span><br><span class="loc">routes/user.js:715</span><br><span class="loc">routes/user.js:754</span></td>
+          <td><div class="t">分站开通价/升级差价无下限约束，下级可 0 价架空上级收益</div>PUT /branch/price 只要求价格 ≥0，不校验"下级价格不得低于上级同款"；分站可把专业价设为 0，拉来的人 0 元成为下级，上级收不到任何收益。<br><b>影响：</b>层级收益链可被任意击穿，分销模式失效。</td>
+          <td class="fx">① 设置下级价格时校验 pricePro ≥ 上级同款（逐级上溯，与商品价格下限同一套逻辑）；② 或明确"自主定价"为商业模式并加风控提示。</td></tr>
+
+        <tr><td><span class="no">7</span></td><td><span class="tag p1">P1</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/user.js:730-750</span><br><span class="loc">routes/branch.js:180-200</span></td>
+          <td><div class="t">一级开通费与顶层升级差价"有扣无收"且无流水</div>open-branch 扣用户余额后无任何账户入账（管理员不收钱）；顶层普通分站升级同样。且三处扣款（open/join/upgrade）都不写 balanceLogs、不生成订单、不发通知。<br><b>影响：</b>财务黑洞、无法对账；管理员不知道平台收了多少钱。</td>
+          <td class="fx">① 建立"平台收入"账户或在 settings 记录收入流水；② 所有余额变动（用户/分站）统一写 balanceLogs；③ 资金变动生成站内消息通知双方。</td></tr>
+
+        <tr><td><span class="no">8</span></td><td><span class="tag p1">P1</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/user.js:768-790</span><br><span class="loc">routes/branch.js:111-124</span></td>
+          <td><div class="t">两条创建下级路径的价格继承不一致</div>邀请链接 join-branch 创建的子站继承上级 pricePro/priceNormal；专业分站后台直开的普通分站（POST /branches）不设置价格字段 → 展示与后续定价全部回退到全局设置值。<br><b>影响：</b>同级分站看到的价格体系不一致，子站升级后的定价与上级设定脱节。</td>
+          <td class="fx">统一两条路径：都继承上级价格并落库；或都不继承、统一从全局读取，并在 UI 明示"价格来源"。<br>同时 /branch/me 对无价格字段的子站应显示父级价格而非全局价。</td></tr>
+
+        <tr><td><span class="no">9</span></td><td><span class="tag p1">P1</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/auth.js:29-35</span><br><span class="loc">routes/branch.js:154</span></td>
+          <td><div class="t">分站密码与用户密码单向同步，双入口语义混乱</div>用户改/重置密码 → syncBranchPassword 强制覆盖名下分站密码（即使分站单独改过）；分站后台改密码（PUT /branch/password）不回写用户密码。两个入口互相覆盖，用户会突然登不上其中一个。<br><b>影响：</b>密码体系混乱，账密冲突投诉多。</td>
+          <td class="fx">明确单一来源：方案A 用户密码为唯一来源（分站后台不允许改密）；方案B 分站独立密码（用户改密不再同步）。建议方案B + 首次登录强制设置分站密码，并在两个入口文案说明。</td></tr>
+
+        <tr><td><span class="no">10</span></td><td><span class="tag p1">P1</span></td><td><span class="tag full">全栈</span></td>
+          <td><span class="loc">routes/user.js:267-292</span><br><span class="loc">routes/admin.js:477</span></td>
+          <td><div class="t">订单商品快照无 branchId，履约/退款闭环缺失</div>订单 goods 快照不含 branchId，历史订单无法归属分站；分站商品的发货依赖总站管理员手动操作，分站完全无感；退款只恢复库存，不涉及分站结算。<br><b>影响：</b>与问题1同源，分站履约责任与收益无从谈起。</td>
+          <td class="fx">① goods 快照携带 branchId（向前兼容老数据）；② 分站可查看本店订单并参与发货（manual 商品由分站填写卡密/物流）；③ 退款联动分站结算冲正。</td></tr>
+
+        <tr><td><span class="no">11</span></td><td><span class="tag p2">P2</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/branch.js:288-308</span></td>
+          <td><div class="t">商品价格下限链存在断裂场景</div>① 总站删除源商品后，分站副本 sourceId 悬空，改价时 floor 回退为自身价格，下限约束消失；② 上级下架同款后，子站可改到低于上级原价（findParentPrice 只找 status===1）；③ 接口返回 floor: p.floor（字段不存在，应为局部变量）。<br><b>影响：</b>"价格不能低于上级同款、层层生效"的承诺在边界场景失效。</td>
+          <td class="fx">① 分站商品保存"当前下限价"快照（创建/上级改价时刷新）；② 上级下架时仍以上架前价格作为下限；③ 修正响应字段 floor 为实际计算值。</td></tr>
+
+        <tr><td><span class="no">12</span></td><td><span class="tag p2">P2</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/branch.js:261-284</span></td>
+          <td><div class="t">分站商品为一次性快照，与总站数据不同步</div>上架时复制名称/详情/图片/库存；总站改价、改名、改详情、补充卡密后分站副本不联动；分站商品强制 manual 类型，库存是上架瞬间快照，卖完即"0"。<br><b>影响：</b>分站店铺信息陈旧、库存失真，顾客体验差。</td>
+          <td class="fx">① 提供"一键同步"（按 sourceId 刷新名称/详情/图片/价格基线）；② 或前台展示时按 sourceId 实时回源总站价格与库存（价格仍需受下限约束）。</td></tr>
+
+        <tr><td><span class="no">13</span></td><td><span class="tag p2">P2</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/user.js</span><br><span class="loc">routes/branch.js</span></td>
+          <td><div class="t">开通/升级/加入均无流水与通知</div>join、open、upgrade 扣款入账后不写任何日志、不生成订单、不发站内消息，事后无法追溯"谁在何时付了多少钱给谁"。<br><b>影响：</b>财务审计、纠纷处理无依据。</td>
+          <td class="fx">新增 branchBalanceLogs（时间/分站/方向/金额/关联人/原因）；资金变动给用户和上级分站发站内消息。</td></tr>
+
+        <tr><td><span class="no">14</span></td><td><span class="tag p2">P2</span></td><td><span class="tag be">后端</span></td>
+          <td><span class="loc">routes/user.js:754</span><br><span class="loc">routes/branch.js:100</span></td>
+          <td><div class="t">上下级层级无上限，可无限嵌套</div>邀请链接可无限向下发展（A→B→C→D…），每层加价，形成深层级分销结构。<br><b>影响：</b>政策与模式风险（涉传销争议），层级越深价格越虚高。</td>
+          <td class="fx">① 限制最大层级（如 3 级），超过后禁止加入；② 或限制加价幅度（每层加价 ≤ 上级价 X%）。</td></tr>
+
+        <tr><td><span class="no">15</span></td><td><span class="tag p2">P2</span></td><td><span class="tag full">全栈</span></td>
+          <td><span class="loc">routes/user.js:754</span><br><span class="loc">public/js/app.js:2139</span></td>
+          <td><div class="t">邀请链接无签名、无风控</div>join-branch 仅凭 username 即可加入，任何人可向任意专业分站塞下级；注册马甲可批量刷下级数量/层级。<br><b>影响：</b>数据污染、层级可被刷，分销统计失真。</td>
+          <td class="fx">① 邀请链接带签名（HMAC(username+时间)）并校验有效期；② 同一设备/IP 开通数量限制；③ 后台展示邀请来源统计便于风控。</td></tr>
+
+        <tr><td><span class="no">16</span></td><td><span class="tag p2">P2</span></td><td><span class="tag full">全栈</span></td>
+          <td><span class="loc">routes/admin.js:1122</span><br><span class="loc">public/js/admin.js:1404</span></td>
+          <td><div class="t">删除分站不清理会话与关联数据；管理端能力薄弱</div>删除分站后 sessions 残留（虽会 401）；若该分站商品已有未完成订单，删除后履约无主且无提示。管理端无分站余额查看/调整、无分站订单查看、无重置分站密码；开通 toast 文案固定为"专业分站已开通"（选普通也如此）。<br><b>影响：</b>运维盲区，误删风险高。</td>
+          <td class="fx">① 删除时清理 sessions 并检查关联订单给出提示；② 管理端补齐：余额查看/调整、分站订单列表、重置密码、编辑名称/备注；③ 修正 toast 文案。</td></tr>
+
+        <tr><td><span class="no">17</span></td><td><span class="tag p2">P2</span></td><td><span class="tag fe">前端</span></td>
+          <td><span class="loc">public/js/app.js:2049</span><br><span class="loc">public/js/branch.js:177-213</span><br><span class="loc">public/js/admin.js:1394</span></td>
+          <td><div class="t">前端体验与健壮性细节</div>① bmOverviewBind 存在死代码（root.dataset?null:null）；② 改价输入无下限提示（后端报错才提示），catalog 下拉一次性加载全部商品无分页，商品量大时卡顿；③ 独立分站后台与用户端内嵌分站管理两套页面逻辑重复，改一处漏一处。<br><b>影响：</b>体验一般、维护成本翻倍。</td>
+          <td class="fx">① 清理死代码；② 改价框旁展示当前下限价，catalog 支持搜索/分页；③ 收敛为单一入口（建议保留用户端内嵌，独立 /branch.html 改为跳转），减少双份维护。</td></tr>
+
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 修改路线图 ===== -->
+  <section>
+    <div class="sec-head"><span class="idx">4</span><div><h2>修复路线图</h2><div class="en">FIX ROADMAP</div></div></div>
+    <div class="timeline">
+
+      <div class="tl-item">
+        <div class="when">第一阶段<small>建议 1–2 天</small></div>
+        <div class="tl-axis"><span class="dot"></span></div>
+        <div class="body"><div class="b-card">
+          <h4>打通"卖货—分成—提现"资金闭环 <span class="phase-chip p0">P0</span></h4>
+          <ul>
+            <li>订单与 goods 快照增加 branchId，建立分站销售归属（#1、#10）</li>
+            <li>新增分站订单列表/发货接口，分站可履约本店订单（#1）</li>
+            <li>销售差价结算进分站余额 + branchBalanceLogs 流水（#1、#13）</li>
+            <li>分站提现申请 + 管理端审核打款 + 分站余额调整接口（#2）</li>
+          </ul>
+        </div></div>
+      </div>
+
+      <div class="tl-item">
+        <div class="when">第二阶段<small>建议 3–5 天</small></div>
+        <div class="tl-axis"><span class="dot"></span></div>
+        <div class="body"><div class="b-card">
+          <h4>封堵权限、资金与一致性漏洞 <span class="phase-chip p1">P1</span></h4>
+          <ul>
+            <li>requireBranchOrUser 校验分站 status；停用/删除清理会话并级联子树（#4、#5、#16）</li>
+            <li>分站价格（商品+开通价）统一"不低于上级"校验（#6、#11）</li>
+            <li>管理员开通分站支持绑定用户；修复升级对无 owner 分站的处理（#3）</li>
+            <li>统一两条下级创建路径的价格继承；统一密码策略（#8、#9）</li>
+            <li>全部资金变动补流水与站内通知（#7、#13）</li>
+          </ul>
+        </div></div>
+      </div>
+
+      <div class="tl-item">
+        <div class="when">第三阶段<small>持续迭代</small></div>
+        <div class="tl-axis"><span class="dot"></span></div>
+        <div class="body"><div class="b-card">
+          <h4>健壮性与体验治理 <span class="phase-chip p2">P2</span></h4>
+          <ul>
+            <li>分站商品同步机制（按 sourceId 刷新价格/库存/详情）（#12）</li>
+            <li>层级上限与邀请链接签名/风控（#14、#15）</li>
+            <li>管理端补齐：分站余额/订单/密码重置/编辑（#16）</li>
+            <li>前端：清死代码、下限价提示、catalog 分页、双后台收敛（#17）</li>
+          </ul>
+        </div></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===== 附录 ===== -->
+  <section>
+    <div class="sec-head"><span class="idx">5</span><div><h2>附录 · 涉及文件</h2><div class="en">SCOPE FILES</div></div></div>
+    <div class="files">
+      <div class="file-chip"><div class="fn">server/routes/branch.js</div><div class="fd">分站认证/上下级管理/商品上架与价格下限（核心）</div></div>
+      <div class="file-chip"><div class="fn">server/routes/user.js</div><div class="fd">订单/支付/开通分站/加入分站/升级扣款</div></div>
+      <div class="file-chip"><div class="fn">server/routes/admin.js</div><div class="fd">管理员分站开通/停用/删除/价格配置/余额调整</div></div>
+      <div class="file-chip"><div class="fn">server/routes/shop.js</div><div class="fd">分站店铺公开信息/分站商品列表</div></div>
+      <div class="file-chip"><div class="fn">server/settle.js</div><div class="fd">支付成功结算（扣库存/发卡/积分），无分站参与</div></div>
+      <div class="file-chip"><div class="fn">server/auth.js</div><div class="fd">会话/权限中间件（requireBranchOrUser 缺 status 校验）</div></div>
+      <div class="file-chip"><div class="fn">public/js/branch.js</div><div class="fd">独立分站后台（登录/概览/下级/商品/改密）</div></div>
+      <div class="file-chip"><div class="fn">public/js/app.js</div><div class="fd">用户端开通/加入/分站管理/分站店铺页面</div></div>
+      <div class="file-chip"><div class="fn">public/js/admin.js</div><div class="fd">管理端分站管理页</div></div>
+      <div class="file-chip"><div class="fn">scripts/test-branch-products.js</div><div class="fd">分站正向流程测试（未覆盖权限/资金/级联场景）</div></div>
+    </div>
+    <div class="arch-note" style="margin-top:14px">审查方法说明：本次为静态代码走查，未运行服务做动态验证；问题影响按代码路径推演。修复建议中的接口与字段为方案级描述，落地时需结合你的商业模式（佣金比例、层级上限、提现规则）细化。</div>
+  </section>
+
+  <div class="footer">发卡网系统 · 分站模块代码审查报告 · 生成于 2026-09-15 · 共 17 项问题（P0×3 / P1×7 / P2×7）</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  function initChart(id, option) {
+    var el = document.getElementById(id);
+    if (!el || typeof echarts === 'undefined') return;
+    var c = echarts.init(el);
+    c.setOption(option);
+    window.addEventListener('resize', function () { c.resize(); });
+  }
+  var sev = {
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0, icon: 'circle', itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 12 } },
+    series: [{
+      type: 'pie', radius: ['52%', '74%'], center: ['50%', '44%'],
+      itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+      label: { formatter: '{b}\n{c} 项', fontSize: 12, lineHeight: 16 },
+      data: [
+        { value: 3, name: 'P0 阻断', itemStyle: { color: '#DC2626' } },
+        { value: 7, name: 'P1 高危', itemStyle: { color: '#EA580C' } },
+        { value: 7, name: 'P2 中危', itemStyle: { color: '#2563EB' } }
+      ]
+    }]
+  };
+  var layer = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 40, right: 16, top: 24, bottom: 30 },
+    xAxis: { type: 'category', data: ['后端', '前端', '全栈'], axisLine: { lineStyle: { color: '#E7EAF0' } }, axisTick: { show: false }, axisLabel: { fontSize: 12 } },
+    yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#F0F2F7' } }, axisLabel: { fontSize: 11 } },
+    series: [{
+      type: 'bar', barWidth: 44,
+      itemStyle: { borderRadius: [8, 8, 0, 0], color: '#7C3AED' },
+      label: { show: true, position: 'top', fontSize: 13, fontWeight: 700 },
+      data: [
+        { value: 8, name: '后端' },
+        { value: 1, name: '前端' },
+        { value: 8, name: '全栈' }
+      ]
+    }]
+  };
+  // 后端为主：8 项纯后端 + 8 项全栈（以问题1-17中的层标注统计，纯前端 1 项）
+  initChart('chart-sev', sev);
+  initChart('chart-layer', layer);
+})();
+</script>
+</body>
+</html>
