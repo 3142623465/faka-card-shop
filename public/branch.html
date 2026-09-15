@@ -1,0 +1,35 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分站后台</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/css/base.css?v=9">
+  <link rel="stylesheet" href="/css/admin.css?v=9">
+<link rel="stylesheet" href="/css/branch.css?v=9">
+  <link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+  <style>
+    .branch-login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0F6DFF, #7C3AED); padding: 20px; }
+    .branch-login-card { width: 100%; max-width: 380px; background: #fff; border-radius: 16px; padding: 28px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.18); }
+    .branch-login-card .bl-logo { text-align: center; margin-bottom: 18px; }
+    .branch-login-card .bl-logo img { width: 56px; height: 56px; }
+    .branch-login-card .bl-logo h2 { margin: 10px 0 2px; font-size: 20px; }
+    .branch-login-card .bl-logo p { color: #8896a8; font-size: 13px; margin: 0; }
+    .cap-row { display: flex; gap: 8px; align-items: center; }
+    .cap-row .input { flex: 1; }
+    .cap-row img { height: 44px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border, #e6e8ef); }
+    .branch-stat { display: flex; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+    .branch-stat .bs-card { flex: 1; min-width: 140px; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+    .branch-stat .bs-card .v { font-size: 22px; font-weight: 700; margin-top: 6px; }
+    .branch-type-pro { color: #7C3AED; }
+    .branch-type-normal { color: #0E9F6E; }
+  </style>
+</head>
+<body class="admin-body">
+  <div id="branch-root"></div>
+  <script src="/js/api.js?v=8"></script>
+  <script src="/js/util.js?v=8"></script>
+  <script src="/js/branch.js?v=8"></script>
+</body>
+</html>
