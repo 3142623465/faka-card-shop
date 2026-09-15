@@ -1776,6 +1776,7 @@ async function aSettings() {
       <div class="panel-head"><span class="ph-title">交易与营销</span></div>      <div class="panel-body">
         <div class="admin-form-grid">
           <div class="af-item"><label>积分比例（1元=?积分）</label><input class="input" id="s-rate" type="number" value="${s.pointsRate}"></div>
+          <div class="af-item"><label>积分兑换比例（?积分=1元）</label><input class="input" id="s-exrate" type="number" value="${s.pointsExchangeRate || 100}" title="多少积分可以兑换1元余额"></div>
           <div class="af-item"><label>注册赠送积分</label><input class="input" id="s-regpts" type="number" value="${s.registerPoints}"></div>
           <div class="af-item"><label>自动确认收货（天）</label><input class="input" id="s-confirm" type="number" value="${s.autoConfirmDays}"></div>
           <div class="af-item"><label>未支付自动取消（分钟）</label><input class="input" id="s-cancel" type="number" value="${s.pendingCancelMinutes}"></div>
@@ -1905,6 +1906,7 @@ async function aSettings() {
             contactWechat: $('#s-wechat').value.trim(),
             hotKeywords: $('#s-hot').value.split(/[,，]/).map((x) => x.trim()).filter(Boolean),
             pointsRate: parseFloat($('#s-rate').value) || 0,
+            pointsExchangeRate: parseInt($('#s-exrate').value) || 100,
             registerPoints: parseInt($('#s-regpts').value) || 0,
             autoConfirmDays: parseInt($('#s-confirm').value) || 7,
             pendingCancelMinutes: parseInt($('#s-cancel').value) || 30,
