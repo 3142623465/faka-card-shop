@@ -102,7 +102,7 @@ router.get('/products', auth.requireAdmin, (req, res) => {
 });
 
 router.post('/products', auth.requireAdmin, (req, res) => {
-  const { categoryId, name, subtitle, price, originalPrice, images, type, stock, detail, isHot, sort, cardNote, cardPrefix, cardCodeLen, cardSecretLen, cardCharset, status, keywords } = req.body || {};
+  const { categoryId, name, subtitle, price, originalPrice, images, type, stock, detail, isHot, sort, cardNote, cardPrefix, cardCodeLen, cardSecretLen, cardCharset, status, keywords, cardsText } = req.body || {};
   if (!categoryId || !name || price === undefined) return res.json(util.fail('请填写分类、名称、价格'));
   if (type !== 'manual' && type !== 'auto') return res.json(util.fail('发货类型不正确'));
   const pprice = Number(price);
@@ -117,7 +117,7 @@ router.post('/products', auth.requireAdmin, (req, res) => {
     originalPrice: pOrig,
     images: Array.isArray(images) && images.length ? images : ['/img/placeholder.svg'],
     type,
-    stock: type === 'manual' ? (Number(stock) || 0) : 0,
+    stock: Number(stock) || 0,
     detail: detail || '',
     isHot: !!isHot, sort: Number(sort) || 0,
     status: status === undefined ? 1 : (status ? 1 : 0),
@@ -132,14 +132,62 @@ router.post('/products', auth.requireAdmin, (req, res) => {
   const stripH = (v) => String(v == null ? '' : v).replace(/<[^>]*>/g, '').trim().slice(0, 500);
   p.name = stripH(p.name); p.subtitle = stripH(p.subtitle); p.cardNote = stripH(p.cardNote); p.keywords = stripH(p.keywords);
   db.mutate((d) => d.products.push(p));
+  // 新建商品时批量粘贴卡密：每行一条，自动计入库存（统一库存池）
+  if (type === 'auto' && String(cardsText || '').trim()) {
+    const add = addCardsToProduct(p.id, String(cardsText).trim());
+    if (!add.ok) return res.json(util.ok(Object.assign({}, p, { cardsAdd: add })));
+  }
+  syncProductStock(p);
   res.json(util.ok(p));
 });
+
+/** 同步商品库存：auto 商品 stock = 未使用卡密数（统一库存池口径） */
+function syncProductStock(p, d) {
+  if (!p || p.type !== 'auto') return;
+  const dd = d || db.load();
+  p.stock = dd.cards.filter((c) => c.productId === p.id && c.status === 'unused').length;
+  db.save();
+}
+
+/** 解析并添加卡密文本（每行一条），返回 {ok, added, duplicated, msg} */
+function addCardsToProduct(pid, raw) {
+  const d = db.load();
+  const p = d.products.find((x) => x.id === pid);
+  if (!p) return { ok: false, msg: '商品不存在' };
+  if (!raw.trim()) return { ok: false, msg: '请输入卡密内容' };
+  let entries = [];
+  if (raw.trim().startsWith('[')) {
+    try { entries = JSON.parse(raw.trim()).map((x) => ({ code: String(x.code || x[0] || '').trim(), secret: String(x.secret || x[1] || '').trim() })); }
+    catch (e) { return { ok: false, msg: 'JSON 格式不正确' }; }
+  } else {
+    entries = raw.split(/\r?\n/).map((line) => {
+      let [code, secret] = line.split(/----|,|\s+/);
+      return { code: String(code || '').trim(), secret: String(secret || '').trim() };
+    });
+  }
+  const now = util.now();
+  const newCards = [];
+  let duplicated = 0;
+  const seenBatch = new Set();
+  for (const e of entries) {
+    if (!e.code) continue;
+    const k = e.code;
+    if (seenBatch.has(k) || d.cards.some((c) => c.productId === pid && c.code === k)) { duplicated++; continue; }
+    seenBatch.add(k);
+    newCards.push({ id: util.nextId('cards'), productId: pid, code: e.code, secret: e.secret, status: 'unused', orderId: 0, usedAt: 0, createdAt: now });
+  }
+  if (!newCards.length) return { ok: false, added: 0, duplicated, msg: duplicated ? '没有可添加的卡密：' + duplicated + ' 条已存在或本批重复' : '请输入卡密内容' };
+  d.cards.push(...newCards);
+  syncProductStock(p, d);
+  db.save();
+  return { ok: true, added: newCards.length, duplicated, msg: duplicated ? `成功添加 ${newCards.length} 条卡密，跳过 ${duplicated} 条重复` : `成功添加 ${newCards.length} 条卡密` };
+}
 
 router.put('/products/:id', auth.requireAdmin, (req, res) => {
   const d = db.load();
   const p = d.products.find((x) => x.id === Number(req.params.id));
   if (!p) return res.json(util.fail('商品不存在'));
-  const { categoryId, name, subtitle, price, originalPrice, images, type, stock, detail, isHot, sort, cardNote, cardPrefix, cardCodeLen, cardSecretLen, cardCharset, status, keywords } = req.body || {};
+  const { categoryId, name, subtitle, price, originalPrice, images, type, stock, detail, isHot, sort, cardNote, cardPrefix, cardCodeLen, cardSecretLen, cardCharset, status, keywords, cardsText } = req.body || {};
   if (price !== undefined) { const pv = Number(price); if (!isFinite(pv) || pv < 0) return res.json(util.fail('商品价格不能为负数')); }
   if (originalPrice !== undefined) { const ov = Number(originalPrice); if (!isFinite(ov) || ov < 0) return res.json(util.fail('划线价不能为负数')); }
   if (categoryId !== undefined) p.categoryId = Number(categoryId);
@@ -148,16 +196,8 @@ router.put('/products/:id', auth.requireAdmin, (req, res) => {
   if (price !== undefined) p.price = Number(price) || 0;
   if (originalPrice !== undefined) p.originalPrice = Number(originalPrice) || 0;
   if (images !== undefined) p.images = Array.isArray(images) && images.length ? images : ['/img/placeholder.svg'];
-  if (type !== undefined && ['auto', 'manual'].includes(type) && type !== p.type) {
-    // 切换发货类型时处理库存：auto→manual 把剩余卡密数写入库存；manual→auto 清零（改为卡池发放）
-    if (p.type === 'auto' && type === 'manual') {
-      p.stock = d.cards.filter((c) => c.productId === p.id && c.status === 'unused').length;
-    } else if (p.type === 'manual' && type === 'auto') {
-      p.stock = 0;
-    }
-    p.type = type;
-    p.typeSwitchedAt = util.now();
-  } else if (type !== undefined && ['auto', 'manual'].includes(type)) {
+  if (type !== undefined && ['auto', 'manual'].includes(type)) {
+    // 切换发货类型不再清空库存：auto→manual 库存保留（此时 stock=剩余卡密数）；manual→auto 保留原库存，导入卡密后自动对齐
     p.type = type;
   }
   if (stock !== undefined && p.type === 'manual') p.stock = Math.max(0, Number(stock) || 0);
@@ -173,6 +213,12 @@ router.put('/products/:id', auth.requireAdmin, (req, res) => {
   if (cardCharset !== undefined) p.cardCharset = cardCharset || 'alnum';
   const stripH = (v) => String(v == null ? '' : v).replace(/<[^>]*>/g, '').trim().slice(0, 500);
   p.name = stripH(p.name); p.subtitle = stripH(p.subtitle); p.cardNote = stripH(p.cardNote); p.keywords = stripH(p.keywords);
+  // 编辑时批量粘贴卡密
+  if (p.type === 'auto' && String(cardsText || '').trim()) {
+    const add = addCardsToProduct(p.id, String(cardsText).trim());
+    if (!add.ok && !add.added) return res.json(util.ok(Object.assign({}, p, { cardsAdd: add })));
+  }
+  syncProductStock(p, d);
   db.save();
   res.json(util.ok(p));
 });
@@ -221,22 +267,30 @@ router.get('/products/:id/cards', auth.requireAdmin, (req, res) => {
  */
 router.post('/products/:id/cards', auth.requireAdmin, (req, res) => {
   const pid = Number(req.params.id);
-  const { text, autoGenerate, count, prefix } = req.body || {};
+  const { text, autoGenerate, count, prefix, startNo } = req.body || {};
   const d = db.load();
   const p = d.products.find((x) => x.id === pid);
   if (!p) return res.json(util.fail('商品不存在'));
   if (p.type !== 'auto') return res.json(util.fail('仅自动发货商品需要卡密'));
 
   const newCards = [];
+  let duplicated = 0;
   const now = util.now();
 
   if (autoGenerate) {
     const n = Math.max(1, Math.min(10000, parseInt(count) || 1));
+    const seqPrefix = String(prefix || '').trim();
+    const seqStart = parseInt(startNo) || 0;
+    // 连续编号模式：前缀 + 起始编号，每条卡号递增、密钥随机
+    const genP = seqPrefix ? Object.assign({}, p, { _seq: { prefix: seqPrefix, startNo: seqStart } }) : p;
+    const seenBatch = new Set();
     for (let i = 0; i < n; i++) {
+      const code = util.genCardCode(genP, i);
+      if (seenBatch.has(code)) { duplicated++; continue; } // 同批去重（连续编号或随机几乎不会撞）
+      seenBatch.add(code);
       newCards.push({
         id: util.nextId('cards'), productId: pid,
-        code: util.genCardCode(p, i),
-        secret: util.genCardSecret(p),
+        code, secret: util.genCardSecret(genP),
         status: 'unused', orderId: 0, usedAt: 0, createdAt: now
       });
     }
@@ -255,10 +309,12 @@ router.post('/products/:id/cards', auth.requireAdmin, (req, res) => {
         return { code: String(code || '').trim(), secret: String(secret || '').trim() };
       });
     }
-    let duplicated = 0;
+    const seenBatch = new Set(); // L-10：同批次内重复检测
     for (const e of entries) {
       if (!e.code) continue;
-      if (d.cards.some((c) => c.productId === pid && c.code === e.code)) { duplicated++; continue; } // 按商品维度去重
+      const k = e.code;
+      if (seenBatch.has(k) || d.cards.some((c) => c.productId === pid && c.code === k)) { duplicated++; continue; } // 商品维度去重 + 本批去重
+      seenBatch.add(k);
       newCards.push({
         id: util.nextId('cards'), productId: pid,
         code: e.code, secret: e.secret,
@@ -266,14 +322,15 @@ router.post('/products/:id/cards', auth.requireAdmin, (req, res) => {
       });
     }
     if (!newCards.length) {
-      return res.json(util.ok({ added: 0, duplicated, msg: duplicated ? '没有可添加的卡密：' + duplicated + ' 条已在当前商品中存在' : '请输入卡密内容' }));
+      return res.json(util.ok({ added: 0, duplicated, msg: duplicated ? '没有可添加的卡密：' + duplicated + ' 条已在当前商品中存在或本批重复' : '请输入卡密内容' }));
     }
   }
 
   if (!newCards.length) return res.json(util.fail('没有可添加的卡密（已存在或内容为空）'));
   d.cards.push(...newCards);
+  syncProductStock(p, d);
   db.save();
-  res.json(util.ok({ added: newCards.length, duplicated: 0, msg: `成功添加 ${newCards.length} 条卡密` }));
+  res.json(util.ok({ added: newCards.length, duplicated, msg: duplicated ? `成功添加 ${newCards.length} 条卡密，跳过 ${duplicated} 条重复` : `成功添加 ${newCards.length} 条卡密` }));
 });
 
 /** 删除单条卡密 */
@@ -284,7 +341,77 @@ router.delete('/cards/:id', auth.requireAdmin, (req, res) => {
   if (!card) return res.json(util.fail('卡密不存在'));
   if (card.status === 'used') return res.json(util.fail('该卡密已售出，无法删除'));
   db.mutate((d) => { d.cards = d.cards.filter((c) => c.id !== id); });
+  const p = d.products.find((x) => x.id === card.productId);
+  if (p) syncProductStock(p, d);
   res.json(util.ok({ msg: '已删除' }));
+});
+
+/** Excel/CSV 导入卡密（.xlsx/.xls/.csv，第一列卡号、第二列密钥，自动跳过表头与重复） */
+router.post('/products/:id/cards/import', auth.requireAdmin, (req, res) => {
+  const pid = Number(req.params.id);
+  const { data, filename = '' } = req.body || {};
+  const d = db.load();
+  const p = d.products.find((x) => x.id === pid);
+  if (!p) return res.json(util.fail('商品不存在'));
+  if (p.type !== 'auto') return res.json(util.fail('仅自动发货商品需要卡密'));
+  if (!data) return res.json(util.fail('请选择要导入的文件'));
+  let XLSX;
+  try { XLSX = require('xlsx'); } catch (e) { return res.json(util.fail('服务端缺少 xlsx 解析库，请先 npm install xlsx')); }
+  let wb;
+  try {
+    const buf = Buffer.from(data, 'base64');
+    const ext = String(filename).toLowerCase().split('.').pop();
+    if (ext === 'csv') wb = XLSX.read(buf.toString('utf8').replace(/^\uFEFF/, ''), { type: 'string' });
+    else wb = XLSX.read(buf, { type: 'buffer' });
+  } catch (e) { return res.json(util.fail('文件解析失败：' + e.message)); }
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) return res.json(util.fail('文件中没有数据'));
+  let rows = [];
+  try { rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }); } catch (e) { return res.json(util.fail('表格解析失败：' + e.message)); }
+  const newCards = [];
+  let duplicated = 0;
+  const now = util.now();
+  const seenBatch = new Set();
+  for (const row of rows) {
+    if (!Array.isArray(row)) continue;
+    const code = String(row[0] || '').trim();
+    const secret = String(row[1] || '').trim();
+    if (!code) continue;
+    if (/^(卡号|卡密|卡号\/密钥|卡号,密钥|code|卡号\/卡密)$/i.test(code)) continue; // 跳过表头行
+    if (seenBatch.has(code) || d.cards.some((c) => c.productId === pid && c.code === code)) { duplicated++; continue; }
+    seenBatch.add(code);
+    newCards.push({ id: util.nextId('cards'), productId: pid, code, secret, status: 'unused', orderId: 0, usedAt: 0, createdAt: now });
+  }
+  if (!newCards.length) {
+    return res.json(util.ok({ added: 0, duplicated, msg: duplicated ? `没有可导入的卡密：${duplicated} 条重复或为空` : '文件中没有有效的卡密数据（第 1 列卡号、第 2 列密钥）' }));
+  }
+  d.cards.push(...newCards);
+  syncProductStock(p, d);
+  db.save();
+  res.json(util.ok({ added: newCards.length, duplicated, msg: duplicated ? `成功导入 ${newCards.length} 条卡密，跳过 ${duplicated} 条重复` : `成功导入 ${newCards.length} 条卡密` }));
+});
+
+/** 导出卡密 CSV（Excel 可直接打开，含 BOM；按当前筛选状态） */
+router.get('/products/:id/cards/export', auth.requireAdmin, (req, res) => {
+  const d = db.load();
+  const pid = Number(req.params.id);
+  const { status = 'all' } = req.query;
+  let list = d.cards.filter((c) => c.productId === pid);
+  if (status !== 'all') list = list.filter((c) => c.status === status);
+  list.sort((a, b) => b.id - a.id);
+  const lines = ['卡号,密钥,状态,售出时间'];
+  for (const c of list) {
+    const usedAt = c.usedAt ? new Date(c.usedAt).toLocaleString('zh-CN', { hour12: false }) : '';
+    const line = [c.code, c.secret || '', c.status === 'unused' ? '未使用' : '已使用', usedAt];
+    lines.push(line.join(','));
+  }
+  const csv = '\uFEFF' + lines.join('\r\n');
+  const p = d.products.find((x) => x.id === pid);
+  const stName = status === 'all' ? '全部' : (status === 'used' ? '已使用' : '未使用');
+  const name = encodeURIComponent((p ? p.name : '卡密') + '-' + stName);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${name}.csv`);
+  res.send(csv);
 });
 
 /* ================= 分类管理 ================= */
@@ -425,23 +552,44 @@ router.get('/orders/:id', auth.requireAdmin, (req, res) => {
 
 /** 手动发货（填写物流单号） */
 router.post('/orders/:id/ship', auth.requireAdmin, (req, res) => {
-  const { trackingNo, logistics = '快递' } = req.body || {};
+  const { trackingNo, logistics = '快递', cards } = req.body || {};
   const d = db.load();
   const o = d.orders.find((x) => x.id === Number(req.params.id));
   if (!o) return res.json(util.fail('订单不存在'));
   if (o.status !== 'paid') return res.json(util.fail('仅待发货订单可发货'));
-  if (!trackingNo) return res.json(util.fail('请填写物流单号'));
+  const isVirtual = o.goods && o.goods.every((g) => g.type === 'auto');
+  // 虚拟商品（自动发货）无需物流单号；实体/手动商品建议填写
+  if (!isVirtual && !trackingNo) return res.json(util.fail('请填写物流单号'));
   o.status = 'shipped';
   o.shippedAt = util.now();
-  o.trackingNo = trackingNo;
-  o.logistics = logistics;
+  if (trackingNo) { o.trackingNo = trackingNo; o.logistics = logistics; }
+  else { o.trackingNo = '无需物流'; o.logistics = '虚拟商品'; }
+  // 手动补发卡密（每行一条，发货时写入订单卡密记录）
+  let cardsDelivered = 0;
+  const cardText = String(cards || '').trim();
+  if (cardText) {
+    const t = util.now();
+    for (const line of cardText.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      let [code, secret] = line.trim().split(/----|,|\s+/);
+      if (!code) continue;
+      d.cards.push({
+        id: util.nextId('cards'), productId: (o.goods && o.goods[0] && o.goods[0].productId) || 0,
+        code: String(code).trim(), secret: String(secret || '').trim(),
+        status: 'used', orderId: o.id, usedAt: t, createdAt: t
+      });
+      cardsDelivered++;
+    }
+    o.cardsDelivered = (o.cardsDelivered || 0) + cardsDelivered;
+    // 库存已在支付结算时扣减（settle），此处不再重复扣减
+  }
   d.messages.push({
     id: util.nextId('messages'), userId: o.userId, type: 'order',
-    title: '订单已发货', content: `订单 ${o.orderNo} 已发货，物流公司：${logistics}，单号：${trackingNo}`,
+    title: '订单已发货', content: `订单 ${o.orderNo} 已发货${trackingNo ? `，物流公司：${logistics}，单号：${trackingNo}` : '（虚拟商品，无需物流）'}${cardsDelivered ? `，卡密已发送 ${cardsDelivered} 条` : ''}`,
     isRead: 0, createdAt: util.now()
   });
   db.save();
-  res.json(util.ok({ msg: '发货成功' }));
+  res.json(util.ok({ msg: '发货成功', cardsDelivered }));
 });
 
 /** 强制取消订单（退款） */
@@ -538,10 +686,12 @@ function refundOrder(d, o, reason) {
       }
     });
   }
-  // 恢复手动库存
+  // 恢复手动库存 / 重算自动库存（统一库存池）
   for (const g of o.goods) {
     const p = d.products.find((x) => x.id === g.productId);
-    if (p && p.type === 'manual') p.stock = (p.stock || 0) + g.quantity;
+    if (!p) continue;
+    if (p.type === 'manual') p.stock = (p.stock || 0) + g.quantity;
+    else if (p.type === 'auto') p.stock = d.cards.filter((c) => c.productId === p.id && c.status === 'unused').length;
   }
   // 冲正分站分成（扣回已计入分站余额的差价）
   settle.revertBranchShare(d, o);
@@ -597,12 +747,12 @@ router.post('/aftersales/:id/handle', auth.requireAdmin, (req, res) => {
 
   if (action === 'approve') {
     a.status = 'approved';
-    a.reply = reply || '同意退款';
+    a.reply = util.sanitizeHtml(reply).slice(0, 200) || '同意退款';
     a.handledAt = util.now();
     refundOrder(d, o, '售后退款：' + (reply || a.reason));
   } else if (action === 'reject') {
     a.status = 'rejected';
-    a.reply = reply || '不符合退款条件';
+    a.reply = util.sanitizeHtml(reply).slice(0, 200) || '不符合退款条件';
     a.handledAt = util.now();
     d.messages.push({
       id: util.nextId('messages'), userId: a.userId, type: 'order',
@@ -624,7 +774,7 @@ router.post('/aftersales/:id/message', auth.requireAdmin, (req, res) => {
   const d = db.load();
   const a = d.aftersales.find((x) => x.id === Number(req.params.id));
   if (!a) return res.json(util.fail('售后单不存在'));
-  const msg = String(content).trim();
+  const msg = util.sanitizeHtml(content).slice(0, 500);
   // 站内消息
   d.messages.push({
     id: util.nextId('messages'), userId: a.userId, type: 'service',
@@ -644,7 +794,7 @@ router.post('/aftersales/:id/message', auth.requireAdmin, (req, res) => {
 /** 订单详情：给客户发站内消息 + 客服对话记录 */
 router.post('/orders/:id/message', auth.requireAdmin, (req, res) => {
   const id = Number(req.params.id);
-  const msg = String((req.body && req.body.content) || '').trim();
+  const msg = util.sanitizeHtml(String((req.body && req.body.content) || '')).slice(0, 500);
   if (!msg) return res.json(util.fail('请输入消息内容'));
   const d = db.load();
   const o = d.orders.find((x) => x.id === id);
@@ -759,9 +909,14 @@ router.delete('/users/:id', auth.requireAdmin, (req, res) => {
   const d = db.load();
   const u = d.users.find((x) => x.id === Number(req.params.id));
   if (!u) return res.json(util.fail('用户不存在'));
-  // 检查是否有未完成订单
-  const hasActive = d.orders.some((o) => o.userId === u.id && ['pending', 'paid', 'shipped'].includes(o.status));
-  if (hasActive) return res.json(util.fail('该用户有未完成订单，无法删除'));
+  // 自动取消该用户所有未完成订单
+  d.orders.forEach((o) => {
+    if (o.userId === u.id && ['pending', 'paid', 'shipped'].includes(o.status)) {
+      o.status = 'cancelled';
+      o.cancelReason = '用户被管理员删除';
+      o.cancelledAt = util.now();
+    }
+  });
   // 级联删除该用户名下分站（含其下级，递归）
   const delBranchIds = new Set();
   const collectBranches = (pid) => {
@@ -852,8 +1007,8 @@ router.post('/faqs', auth.requireAdmin, (req, res) => {
   const { category, question, answer, sort = 0 } = req.body || {};
   if (!question || !answer) return res.json(util.fail('请填写问题与答案'));
   const f = {
-    id: util.nextId('faqs'), category: category || '常见问题',
-    question, answer, sort: Number(sort) || 0
+    id: util.nextId('faqs'), category: util.sanitizeHtml(category).slice(0, 50),
+    question: util.sanitizeHtml(question).slice(0, 200), answer: util.sanitizeHtml(answer, { keepTags: true }).slice(0, 2000), sort: Number(sort) || 0
   };
   db.mutate((d) => d.faqs.push(f));
   res.json(util.ok(f));
@@ -864,9 +1019,9 @@ router.put('/faqs/:id', auth.requireAdmin, (req, res) => {
   const f = d.faqs.find((x) => x.id === Number(req.params.id));
   if (!f) return res.json(util.fail('FAQ 不存在'));
   const { category, question, answer, sort } = req.body || {};
-  if (category !== undefined) f.category = category;
-  if (question !== undefined) f.question = question;
-  if (answer !== undefined) f.answer = answer;
+  if (category !== undefined) f.category = util.sanitizeHtml(category).slice(0, 50);
+  if (question !== undefined) f.question = util.sanitizeHtml(question).slice(0, 200);
+  if (answer !== undefined) f.answer = util.sanitizeHtml(answer, { keepTags: true }).slice(0, 2000);
   if (sort !== undefined) f.sort = Number(sort) || 0;
   db.save();
   res.json(util.ok(f));

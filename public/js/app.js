@@ -2095,7 +2095,10 @@ async function vBranchManage(params) {
   const sub = params[0] || 'overview';
   let me = null;
   try { me = await API.get('/branch/me'); } catch (e) {
-    return { html: `${navBar('分站管理')}<div class="empty"><img src="/img/empty.svg" alt=""><div class="empty-text">${esc((e && e.message) || '获取分站信息失败')}</div><div class="text-xs text-3" style="margin-top:6px">开通分站后即可在此管理</div><button class="btn btn-primary" style="margin-top:12px" data-goto="#/open-branch">去开通分站</button></div>` };
+    return {
+      html: `${navBar('分站管理')}<div class="empty"><img src="/img/empty.svg" alt=""><div class="empty-text">${esc((e && e.message) || '获取分站信息失败')}</div><div class="text-xs text-3" style="margin-top:6px">开通分站后即可在此管理</div><button class="btn btn-primary" style="margin-top:12px" data-goto="#/open-branch">去开通分站</button></div>`,
+      mount() { bindBack($('#view')); bindGoto($('#view')); }
+    };
   }
   const isPro = me.type === 'pro';
   const menu = `<div class="cell-group" style="margin-top:0">
