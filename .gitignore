@@ -13,5 +13,11 @@ _pca.json
 _check.js
 _conv.js
 logs/
-backups/
-.env
+
+# ---- 测试报告/评审报告/本地启动脚本/其他平台配置（不参与线上部署）----
+test-reports/
+branch-review-report/
+full-review-report/
+render.yaml
+后台启动.vbs
+启动服务.bat

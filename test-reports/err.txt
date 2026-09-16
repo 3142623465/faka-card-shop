@@ -1,7 +1,0 @@
-﻿node : FATAL: Cannot read properties of undefined (reading 'devCode')
-所在位置 行:1 字符: 25
-+ ... Location "D:\faka"; node test-reports/api-test-public.js 2>&1 | Out-F ...
-+                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (FATAL: Cannot r...ding 'devCode'):String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
