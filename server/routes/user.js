@@ -804,19 +804,27 @@ router.post('/upload', auth.requireUser, (req, res) => {
 
 /* ================= 注销账号 ================= */
 
-router.delete('/account', auth.requireUser, (req, res) => {
+router.delete('/account', auth.requireUser, async (req, res) => {
   const uid = req.user.id;
+  const { code } = req.body || {};
   const d = db.load();
+  // 必须验证绑定邮箱（验证码由 /api/auth/send-email-code-authed?purpose=cancel_account 发送）
+  const em = (req.user.email || '').trim().toLowerCase();
+  if (!em) return res.json(util.fail('账号未绑定邮箱，无法自助注销，请联系客服'));
+  if (!code) return res.json(util.fail('请输入邮箱验证码'));
+  const nowT = util.now();
+  const rec = (d.emailCodes || []).find((x) => x.email === em && x.scene === 'cancel_account' && String(x.code) === String(code) && x.expiresAt >= nowT);
+  if (!rec) return res.json(util.fail('验证码错误或已过期'));
+  d.emailCodes = (d.emailCodes || []).filter((x) => x !== rec); // 用后即焚
   if (d.orders.some((o) => o.userId === uid && ['pending', 'paid', 'shipped'].includes(o.status))) {
     return res.json(util.fail('存在进行中的订单，请先处理后再注销'));
   }
   const u = d.users.find((x) => x.id === uid);
   if (!u) return res.json(util.fail('账号不存在'));
-  // 软删除：保留订单/售后/对话快照供对账与后台查阅，标记 + 清敏感信息（邮箱释放可重新注册）
+  // 软删除：保留订单/售后/对话快照供对账；保留 email 用于登录时识别并提示"已注销"
   u.userDeleted = 1;
   u.status = 0;
-  u.deletedAt = util.now();
-  u.email = '';
+  u.deletedAt = nowT;
   u.phone = '';
   u.passwordHash = '';
   u.nickname = '已注销用户' + uid;
@@ -827,6 +835,7 @@ router.delete('/account', auth.requireUser, (req, res) => {
   d.favorites = d.favorites.filter((f) => f.userId !== uid);
   d.userCoupons = d.userCoupons.filter((c) => c.userId !== uid);
   db.save();
+  await db.flushNow(); // Serverless 下必须落库后再响应
   res.json(util.ok({ msg: '账号已注销' }));
 });
 

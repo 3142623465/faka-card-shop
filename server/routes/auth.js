@@ -115,6 +115,8 @@ router.post('/login', (req, res) => {
     if (!rateAllow(clientKey(req, pwdKey), 4, 60000)) return res.json(util.fail('操作频繁，请 60 秒后再试'));
     return res.json(util.fail('账号或密码错误'));
   }
+  // 已自助注销的账号：明确提示，不再允许登录（密码已清空，邮箱保留用于识别）
+  if (user.userDeleted) return res.json(util.fail('该账号已注销，无法登录'));
   if (!util.verifyPassword(password, user.passwordHash)) {
     if (!rateAllow(clientKey(req, pwdKey), 4, 60000)) return res.json(util.fail('操作频繁，请 60 秒后再试'));
     return res.json(util.fail('账号或密码错误'));
@@ -141,6 +143,8 @@ router.post('/login-email-code', (req, res) => {
   const d = db.load();
   let user = d.users.find((u) => (u.email || '').toLowerCase() === em);
   const settings = d.settings;
+  // 已注销账号：验证码登录也明确拒绝，不允许自动复活
+  if (user && user.userDeleted) return res.json(util.fail('该账号已注销，无法登录'));
   if (!user) {
     // 邮箱验证码登录自动注册
     user = {
@@ -204,7 +208,8 @@ router.post('/send-email-code', async (req, res) => {
   if (!captcha.verifyCaptcha(captchaToken, captchaCode)) return res.json(util.fail('图形验证码错误，请刷新后重试'));
   if (!rateAllow(clientKey(req, 'email|' + em), 1, 60000)) return res.json(util.fail('发送过于频繁，请稍后再试'));
   const d = db.load();
-  const exists = d.users.some((u) => (u.email || '').toLowerCase() === em);
+  // 已注销账号不占用邮箱（允许同邮箱重新注册）
+  const exists = d.users.some((u) => !u.userDeleted && (u.email || '').toLowerCase() === em);
   if (scene === 'register' && exists) return res.json(util.fail('该邮箱已注册'));
   if (scene === 'reset' && !exists) return res.json(util.fail('该邮箱未注册'));
   if (scene === 'bind' && exists) return res.json(util.fail('该邮箱已被绑定，请更换邮箱'));
@@ -249,7 +254,7 @@ router.post('/send-email-code-authed', auth.requireUser, async (req, res) => {
       <div style="background:#ff7d00;padding:18px 24px;color:#fff;font-size:16px;font-weight:700">${siteName} · 邮箱验证</div>
       <div style="padding:24px;color:#333;font-size:14px;line-height:1.8">
         <p>您好：</p>
-        <p>您正在进行${purpose === 'change_password' ? '修改密码' : '身份验证'}操作，验证码为：</p>
+        <p>您正在进行${purpose === 'change_password' ? '修改密码' : purpose === 'cancel_account' ? '注销账号（高危操作）' : '身份验证'}操作，验证码为：</p>
         <div style="font-size:30px;font-weight:bold;color:#ff7d00;letter-spacing:8px;padding:14px;background:#fff7f0;border-radius:8px;text-align:center;margin:16px 0">${code}</div>
         <p style="color:#999;font-size:12px">验证码 10 分钟内有效，请勿泄露给他人。如非本人操作请忽略。</p>
       </div>
@@ -268,7 +273,12 @@ router.post('/register-email', (req, res) => {
   if (!verifyEmailCode(mail, code, 'register')) return res.json(util.fail('验证码错误或已过期'));
   if (!password || password.length < 6) return res.json(util.fail('密码至少 6 位'));
   const d = db.load();
-  if (d.users.some((u) => (u.email || '').toLowerCase() === mail)) return res.json(util.fail('该邮箱已注册'));
+  // 仅对"正常"账号查重；已注销账号不阻止重新注册
+  if (d.users.some((u) => !u.userDeleted && (u.email || '').toLowerCase() === mail)) return res.json(util.fail('该邮箱已注册'));
+  // 释放同邮箱的历史注销记录（改为内部占位邮箱，保留其订单/售后快照供对账）
+  d.users.forEach((u) => {
+    if (u.userDeleted && (u.email || '').toLowerCase() === mail) u.email = 'deleted_' + u.id + '@cancelled.local';
+  });
   const settings = d.settings;
   const user = {
     id: util.nextId('users'),

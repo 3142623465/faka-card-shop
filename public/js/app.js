@@ -744,6 +744,59 @@ function openBindDialog() {
   });
 }
 
+/* 注销账号：必须先验证绑定邮箱（验证码发到登录账号的邮箱） */
+function openCancelAccountDialog(me) {
+  const email = (me && me.email) || (Auth.user && Auth.user.email) || '';
+  if (!email) { toast('账号未绑定邮箱，无法自助注销，请联系客服', 'error'); return; }
+  const ts = Date.now();
+  const mask = document.createElement('div');
+  mask.className = 'qr-mask';
+  mask.innerHTML = `
+    <div class="qr-box" style="max-width:340px">
+      <div class="qr-head"><span class="qr-title" style="color:var(--danger)">注销账号（邮箱验证）</span><span class="qr-close" data-c>&times;</span></div>
+      <div class="qr-pane" style="padding:16px 18px 18px">
+        <p style="font-size:13px;color:var(--sub);margin:0 0 12px;line-height:1.6">注销后该账号将无法登录，订单/售后记录将按法规保留用于对账。为确认是本人操作，验证码将发送至绑定邮箱：<b>${esc(email)}</b></p>
+        <div class="form-item" style="display:flex;gap:8px">
+          <input class="input" id="cc-code-${ts}" maxlength="6" placeholder="请输入6位邮箱验证码" inputmode="numeric" style="flex:1">
+          <button class="btn btn-outline btn-sm" id="cc-send-${ts}" style="white-space:nowrap">获取验证码</button>
+        </div>
+        <button class="btn btn-danger btn-block" id="cc-ok-${ts}" style="margin-top:8px">确认注销</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mask);
+  const q = (sel) => mask.querySelector(sel);
+  const close = () => mask.remove();
+  q('[data-c]').addEventListener('click', close);
+  mask.addEventListener('click', (e) => { if (e.target === mask) close(); });
+  const sendBtn = q('#cc-send-' + ts);
+  sendBtn.addEventListener('click', async () => {
+    if (sendBtn.disabled) return;
+    sendBtn.disabled = true;
+    try {
+      await API.post('/auth/send-email-code-authed', { purpose: 'cancel_account' });
+      toast('验证码已发送至绑定邮箱，请注意查收', 'success');
+      let sec = 60;
+      sendBtn.textContent = sec + 's 后重发';
+      const t = setInterval(() => {
+        sec--;
+        if (sec <= 0) { clearInterval(t); sendBtn.textContent = '获取验证码'; sendBtn.disabled = false; }
+        else sendBtn.textContent = sec + 's 后重发';
+      }, 1000);
+    } catch (e) { toast(e.message, 'error'); sendBtn.disabled = false; }
+  });
+  q('#cc-ok-' + ts).addEventListener('click', async () => {
+    const code = q('#cc-code-' + ts).value.trim();
+    if (!/^\d{6}$/.test(code)) return toast('请输入6位邮箱验证码', 'error');
+    try {
+      await API.del('/user/account', { body: { code } });
+      close();
+      Auth.logout();
+      toast('账号已注销', 'success');
+      location.hash = '#/login';
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+
 /* ============================================================
    首页
    ============================================================ */
@@ -3561,13 +3614,8 @@ async function vSecurity() {
       const be = $('[data-bind-email]', root);
       if (be) be.addEventListener('click', () => openBindDialog());
       $('[data-del-account]', root).addEventListener('click', async () => {
-        if (!await dialog({ title: '注销账号', text: '注销后账号数据将被删除且不可恢复，确定继续？', confirmText: '确定注销', cancelText: '再想想', danger: true })) return;
-        try {
-          await API.del('/user/account');
-          Auth.logout();
-          toast('账号已注销', 'success');
-          location.hash = '#/home';
-        } catch (e) { toast(e.message, 'error'); }
+        if (!await dialog({ title: '注销账号', text: '注销前需验证绑定邮箱，注销后账号将无法登录。确定继续？', confirmText: '去验证', cancelText: '再想想', danger: true })) return;
+        openCancelAccountDialog(me);
       });
     }
   };
