@@ -113,7 +113,7 @@ router.get('/branches', auth.requireBranchOrUser, (req, res) => {
 });
 
 /** 专业分站：开通普通/专业分站（价格继承上级，层级受上限约束） */
-router.post('/branches', auth.requireBranchOrUser, (req, res) => {
+router.post('/branches', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   if (b.type !== 'pro') return res.json(util.fail('普通分站无开通下级权限'));
   const { name, username, password, note, type } = req.body || {};
@@ -145,11 +145,12 @@ router.post('/branches', auth.requireBranchOrUser, (req, res) => {
   };
   d.branches.push(branch);
   db.save();
+  await db.flushNow();
   res.json(util.ok({ id: branch.id }));
 });
 
 /** 专业分站：启用/停用普通分站（停用级联子树并清理分站会话） */
-router.put('/branches/:id', auth.requireBranchOrUser, (req, res) => {
+router.put('/branches/:id', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   if (b.type !== 'pro') return res.json(util.fail('普通分站无下级管理权限'));
   const id = Number(req.params.id);
@@ -168,11 +169,12 @@ router.put('/branches/:id', auth.requireBranchOrUser, (req, res) => {
     child.status = 1;
   }
   db.save();
+  await db.flushNow();
   res.json(util.ok({ status: child.status }));
 });
 
 /** 专业分站：删除普通分站（级联子树 + 清理会话 + 校验未完成订单） */
-router.delete('/branches/:id', auth.requireBranchOrUser, (req, res) => {
+router.delete('/branches/:id', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   if (b.type !== 'pro') return res.json(util.fail('普通分站无下级管理权限'));
   const id = Number(req.params.id);
@@ -189,11 +191,12 @@ router.delete('/branches/:id', auth.requireBranchOrUser, (req, res) => {
   d.products = d.products.filter((p) => !ids.has(p.branchId));
   d.sessions = d.sessions.filter((x) => !(x.role === 'branch' && ids.has(x.userId)));
   db.save();
+  await db.flushNow();
   res.json(util.ok({ removed: ids.size }));
 });
 
 /** 分站修改密码（双向同步：绑定用户账号同步更新为同一密码并清理其会话，保证"同一账号同一密码"） */
-router.put('/password', auth.requireBranchOrUser, (req, res) => {
+router.put('/password', auth.requireBranchOrUser, async (req, res) => {
   const { oldPassword, newPassword } = req.body || {};
   const b = req.branch;
   if (!util.verifyPassword(oldPassword || '', b.passwordHash)) return res.json(util.fail('原密码错误'));
@@ -215,11 +218,12 @@ router.put('/password', auth.requireBranchOrUser, (req, res) => {
     }
   }
   db.save();
+  await db.flushNow();
   res.json(util.ok({ synced: !!b.ownerId }));
 });
 
 /** 专业分站：设置下级分站价格（专业价 / 普通价，不得低于上级同款） */
-router.put('/price', auth.requireBranchOrUser, (req, res) => {
+router.put('/price', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   if (b.type !== 'pro') return res.json(util.fail('普通分站无下级，不能设置价格'));
   const pro = Number(req.body && req.body.pricePro);
@@ -234,11 +238,12 @@ router.put('/price', auth.requireBranchOrUser, (req, res) => {
   b.pricePro = Math.round(pro * 100) / 100;
   b.priceNormal = Math.round(normal * 100) / 100;
   db.save();
+  await db.flushNow();
   res.json(util.ok({ pricePro: b.pricePro, priceNormal: b.priceNormal }));
 });
 
 /** 普通分站升级为专业分站（补差价；上级=超级管理员时差价进入平台） */
-router.put('/upgrade', auth.requireBranchOrUser, (req, res) => {
+router.put('/upgrade', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   if (b.type === 'pro') return res.json(util.fail('您已是专业分站'));
   const d = db.load();
@@ -300,7 +305,7 @@ router.put('/upgrade', auth.requireBranchOrUser, (req, res) => {
   }
   b.type = 'pro';
   db.save();
-  db.flushNow(); // 升级扣款/分成立即落盘
+  await db.flushNow(); // 升级扣款/分成立即落盘（Serverless 必须等待，否则实例冻结丢数据）
   res.json(util.ok({ balance: payFrom === 'user' ? owner.balance : b.balance, paid: price }));
 });
 
@@ -372,7 +377,7 @@ router.get('/orders/:id', auth.requireBranchOrUser, (req, res) => {
 });
 
 /** 本分站订单发货：手动发货（填卡密或物流单号）；只允许操作本分站商品行 */
-router.post('/orders/:id/ship', auth.requireBranchOrUser, (req, res) => {
+router.post('/orders/:id/ship', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const { cards, trackingNo, logistics = '快递' } = req.body || {};
   const d = db.load();
@@ -415,6 +420,7 @@ router.post('/orders/:id/ship', auth.requireBranchOrUser, (req, res) => {
     isRead: 0, createdAt: t
   });
   db.save();
+  await db.flushNow();
   res.json(util.ok({ status: o.status, cardsDelivered }));
 });
 
@@ -459,7 +465,7 @@ router.get('/pay-accounts', auth.requireBranchOrUser, (req, res) => {
 });
 
 /** 绑定/更新收款方式（需邮箱验证码：发送到分站账号邮箱，scene=pay） */
-router.post('/pay-accounts', auth.requireBranchOrUser, (req, res) => {
+router.post('/pay-accounts', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const d = db.load();
   const { type, email, emailCode } = req.body || {};
@@ -501,19 +507,19 @@ router.post('/pay-accounts', auth.requireBranchOrUser, (req, res) => {
     pa.bank = { holder, bankName, account, updatedAt: now };
   }
   db.save();
-  db.flushNow();
+  await db.flushNow();
   res.json(util.ok({ msg: '收款方式已绑定' }));
 });
 
 /** 解绑收款方式 */
-router.delete('/pay-accounts/:type', auth.requireBranchOrUser, (req, res) => {
+router.delete('/pay-accounts/:type', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const type = String(req.params.type || '');
   if (!['alipay', 'wechat', 'bank'].includes(type)) return res.json(util.fail('收款方式不正确'));
   if (!b.payAccounts || !b.payAccounts[type]) return res.json(util.fail('该收款方式未绑定'));
   delete b.payAccounts[type];
   db.save();
-  db.flushNow();
+  await db.flushNow();
   res.json(util.ok({ msg: '已解绑' }));
 });
 
@@ -548,7 +554,7 @@ router.get('/withdrawals', auth.requireBranchOrUser, (req, res) => {
 });
 
 /** 申请提现（使用已绑定的收款方式：alipay / wechat / bank） */
-router.post('/withdrawals', auth.requireBranchOrUser, (req, res) => {
+router.post('/withdrawals', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const amount = Math.round(Number(req.body && req.body.amount) * 100) / 100;
   const method = String((req.body && req.body.method) || '').trim();
@@ -582,12 +588,12 @@ router.post('/withdrawals', auth.requireBranchOrUser, (req, res) => {
     desc: `申请提现 ¥${amount.toFixed(2)}（待审核，冻结中）`, relatedId: w.id, createdAt: util.now()
   });
   db.save();
-  db.flushNow(); // 提现申请立即落盘
+  await db.flushNow(); // 提现申请立即落盘
   res.json(util.ok({ id: w.id, msg: '提现申请已提交，等待管理员审核' }));
 });
 
 /** 取消提现申请 */
-router.post('/withdrawals/:id/cancel', auth.requireBranchOrUser, (req, res) => {
+router.post('/withdrawals/:id/cancel', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const id = Number(req.params.id);
   const d = db.load();
@@ -597,6 +603,7 @@ router.post('/withdrawals/:id/cancel', auth.requireBranchOrUser, (req, res) => {
   w.status = 'cancelled';
   w.reply = '用户取消';
   db.save();
+  await db.flushNow();
   res.json(util.ok({ msg: '已取消提现申请' }));
 });
 
@@ -652,7 +659,7 @@ router.get('/catalog', auth.requireBranchOrUser, (req, res) => {
 });
 
 /** 上架总站商品（复制到本分站；价格不能低于上级同款价） */
-router.post('/products', auth.requireBranchOrUser, (req, res) => {
+router.post('/products', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const { sourceId, price } = req.body || {};
   const sid = Number(sourceId);
@@ -695,11 +702,12 @@ router.post('/products', auth.requireBranchOrUser, (req, res) => {
   };
   d.products.push(np);
   db.save();
+  await db.flushNow();
   res.json(util.ok({ id: np.id, price: np.price, floor: min }));
 });
 
 /** 修改分站商品价格/上下架（价格不能低于上级同款价） */
-router.put('/products/:id', auth.requireBranchOrUser, (req, res) => {
+router.put('/products/:id', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const id = Number(req.params.id);
   const d = db.load();
@@ -722,12 +730,13 @@ router.put('/products/:id', auth.requireBranchOrUser, (req, res) => {
     p.status = req.body.status === 1 ? 1 : 0;
   }
   db.save();
+  await db.flushNow();
   const floorNow = findParentPrice(d, p.sourceId, b);
   res.json(util.ok({ price: p.price, status: p.status, floor: floorNow === null ? p.floorPrice : floorNow }));
 });
 
 /** 删除分站商品（有进行中订单时禁止删除） */
-router.delete('/products/:id', auth.requireBranchOrUser, (req, res) => {
+router.delete('/products/:id', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const id = Number(req.params.id);
   const d = db.load();
@@ -738,11 +747,12 @@ router.delete('/products/:id', auth.requireBranchOrUser, (req, res) => {
   }
   d.products = d.products.filter((x) => x.id !== id);
   db.save();
+  await db.flushNow();
   res.json(util.ok({}));
 });
 
 /** 一键同步：从总站源商品同步名称/图片/详情等展示字段（价格保持分站设置） */
-router.post('/sync-products', auth.requireBranchOrUser, (req, res) => {
+router.post('/sync-products', auth.requireBranchOrUser, async (req, res) => {
   const b = req.branch;
   const d = db.load();
   let changed = 0;
@@ -767,6 +777,7 @@ router.post('/sync-products', auth.requireBranchOrUser, (req, res) => {
     changed++;
   });
   db.save();
+  await db.flushNow();
   res.json(util.ok({ changed, msg: changed ? `已同步 ${changed} 个商品` : '无需同步' }));
 });
 

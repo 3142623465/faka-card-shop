@@ -879,7 +879,7 @@ function pushUserBalanceLog(d, userId, change, balance, type, desc, relatedId) {
 }
 
 /** 前端自助开通一级分站（可选普通/专业，余额支付，价格由超级管理员设置） */
-router.post('/open-branch', auth.requireUser, (req, res) => {
+router.post('/open-branch', auth.requireUser, async (req, res) => {
   const { name, type } = req.body || {};
   const nm = String(name || '').trim();
   const typ = type === 'normal' ? 'normal' : 'pro';
@@ -931,12 +931,12 @@ router.post('/open-branch', auth.requireUser, (req, res) => {
     isRead: 0, createdAt: util.now()
   });
   db.save();
-  db.flushNow(); // 分站开通扣款立即落盘
+  await db.flushNow(); // 分站开通扣款立即落盘
   res.json(util.ok({ id: branch.id, username: branch.username, paid: price, balance: req.user.balance }));
 });
 
 /** 加入分站（在专业分站的邀请链接下开通下级分站，价格由该专业分站设置，付款进入该分站余额） */
-router.post('/join-branch', auth.requireUser, (req, res) => {
+router.post('/join-branch', auth.requireUser, async (req, res) => {
   const { parent, type, name, sign } = req.body || {};
   const nm = String(name || '').trim();
   let typ = type === 'pro' ? 'pro' : 'normal';
@@ -1003,7 +1003,7 @@ router.post('/join-branch', auth.requireUser, (req, res) => {
     isRead: 0, createdAt: util.now()
   });
   db.save();
-  db.flushNow(); // 分站开通扣款立即落盘
+  await db.flushNow(); // 分站开通扣款立即落盘
   res.json(util.ok({ id: branch.id, username: branch.username, paid: price, balance: req.user.balance }));
 });
 

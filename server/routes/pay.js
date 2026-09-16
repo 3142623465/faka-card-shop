@@ -47,7 +47,7 @@ function parseNotifyParams(req) {
 }
 
 /** 微信支付回调（body 为 JSON 明文，头带签名；应答一律 HTTP 200 + JSON） */
-router.post('/notify/wechat', (req, res) => {
+router.post('/notify/wechat', async (req, res) => {
   const raw = req.rawBody || JSON.stringify(req.body || {});
   const headers = req.headers;
   let result;
@@ -80,11 +80,12 @@ router.post('/notify/wechat', (req, res) => {
   if (!r.ok) {
     handleSettleFailure(d, o, 'wechat', r.error);
   }
+  await db.flushNow(); // 资金结算必须在应答渠道前落库，防止 Serverless 冻结丢单
   res.json({ code: 'SUCCESS', message: '成功' });
 });
 
 /** 支付宝回调（application/x-www-form-urlencoded，RSA2 验签） */
-router.post('/notify/alipay', (req, res) => {
+router.post('/notify/alipay', async (req, res) => {
   const params = parseNotifyParams(req);
   let result;
   try {
@@ -115,11 +116,12 @@ router.post('/notify/alipay', (req, res) => {
   if (!r.ok) {
     handleSettleFailure(d, o, 'alipay', r.error);
   }
+  await db.flushNow(); // 资金结算必须在应答渠道前落库
   res.send('success'); // 支付宝要求应答纯文本 success
 });
 
 /** 虎皮椒回调（application/x-www-form-urlencoded，MD5 验签） */
-router.post('/notify/xunhu', (req, res) => {
+router.post('/notify/xunhu', async (req, res) => {
   const params = parseNotifyParams(req);
   if (!xunhu.verifyNotify(params)) {
     console.warn('[pay] 虎皮椒回调验签失败');
@@ -149,6 +151,7 @@ router.post('/notify/xunhu', (req, res) => {
   if (!r.ok) {
     handleSettleFailure(d, o, 'xunhu', r.error);
   }
+  await db.flushNow(); // 资金结算必须在应答渠道前落库
   res.send('success'); // 虎皮椒要求返回 success
 });
 

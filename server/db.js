@@ -17,7 +17,6 @@ const USE_MONGO = !!MONGODB_URI;
 let db = null;
 let dirty = false;
 let saveTimer = null;
-let saving = false;
 let mongoCol = null;
 let mongoReady = false;
 
@@ -123,41 +122,31 @@ function load() {
   throw new Error('数据库未初始化，请先调用 db.init()');
 }
 
-/** 保存（防抖；Mongo/Serverless 模式下立即发起写入，避免函数冻结丢数据） */
+/** 保存（标记脏数据；Mongo 立即在后台串行写入，本地文件保留防抖）。关键写操作仍应 await flushNow() */
 function save(force) {
   if (!db) return;
   dirty = true;
-  if (force) {
-    clearTimeout(saveTimer);
-    flush();
-    return;
-  }
-  // Vercel 等 Serverless 环境：响应返回后函数实例很快被冻结/回收，
-  // 150ms 防抖 timer 经常来不及执行，导致"操作提示成功但数据没落库"。
-  // 因此 Mongo 模式下立即发起写入（在响应返回前就开始网络请求），
-  // 关键写操作仍应配合 await flushNow() 确保写入完成后再响应。
   if (USE_MONGO) {
-    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
-    flush();
+    // Vercel 等 Serverless：响应返回后实例很快被冻结/回收，防抖 timer 经常来不及执行，
+    // 导致"操作提示成功但数据没落库"。这里立即把写操作串行入队（响应返回前就开始网络写），
+    // 最终由 flushNow() 在响应前 await 兜底确认。
+    scheduleMongoWrite();
     return;
   }
-  // 本地长驻进程模式：保留防抖，减少磁盘写入次数
+  if (force && saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   if (saveTimer) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    flush();
-  }, 150);
+    try { saveToFile(); dirty = false; } catch (e) { console.error('[db] 保存失败:', e.message); }
+  }, force ? 0 : 150);
 }
 
-function flush() {
-  if (saving) return;
-  saving = true;
-  if (USE_MONGO) {
-    saveToMongo().catch((e) => console.error('[db] MongoDB 保存失败:', e.message))
-      .finally(() => { saving = false; });
-  } else {
-    try { saveToFile(); } finally { saving = false; }
-  }
+// Mongo 写入串行链：同一时刻仅一个全量写，后一个写包含前一个写的全部变更，杜绝并发覆盖
+let writeChain = Promise.resolve();
+function scheduleMongoWrite() {
+  const run = writeChain.then(() => saveToMongo());
+  writeChain = run.catch((e) => console.error('[db] MongoDB 保存失败:', e.message));
+  return run;
 }
 
 /** 执行变更并标记保存 */
@@ -175,18 +164,21 @@ function nextId(entity) {
   return d.seq[entity];
 }
 
-/** 立即落盘 */
+/** 立即落盘（响应前调用：等待在途写入完成并确认本次数据已持久化，然后清脏标志） */
 async function flushNow() {
   if (!db || !dirty) return;
   if (USE_MONGO) {
-    try { await saveToMongo(); } catch (e) { console.error('[db] flushNow失败:', e.message); }
+    try { await scheduleMongoWrite(); dirty = false; }
+    catch (e) { console.error('[db] flushNow失败:', e.message); }
   } else {
-    saveToFile();
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    try { saveToFile(); dirty = false; } catch (e) { console.error('[db] flushNow失败:', e.message); }
   }
 }
 
-/** 重新加载（种子重建后调用） */
+/** 重新加载（先等待在途写入落库，再从存储读最新；Serverless 每请求调用以避免热实例旧快照） */
 async function reload() {
+  try { await writeChain; } catch (e) { /* 忽略 */ }
   db = null;
   return await init();
 }

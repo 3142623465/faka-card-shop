@@ -62,6 +62,17 @@ async function main() {
 app.use(express.static(path.join(__dirname, '..', 'public')));
   app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+  /* ---------- 响应前统一落库（与 api/index.js 对齐：写操作在 JSON 响应发出前持久化，防丢数据）---------- */
+  app.use('/api', (req, res, next) => {
+    const db = require('./db');
+    const origJson = res.json.bind(res);
+    res.json = (body) => {
+      db.flushNow().catch(() => {}).then(() => origJson(body));
+      return res;
+    };
+    next();
+  });
+
   /* ---------- 路由 ---------- */
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/shop', require('./routes/shop'));

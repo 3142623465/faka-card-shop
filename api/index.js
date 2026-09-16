@@ -70,12 +70,36 @@ function createApp() {
   // 数据库就绪检查
   application.use('/api', async (req, res, next) => {
     if (req.path === '/auth/captcha' || req.path === '/health') return next();
-    if (!dbReady) {
-      await initDb();
+    try {
       if (!dbReady) {
-        return res.status(503).json({ code: 1, msg: '系统初始化中，请刷新页面重试' });
+        await initDb();
+        if (!dbReady) {
+          return res.status(503).json({ code: 1, msg: '系统初始化中，请刷新页面重试' });
+        }
+      } else if (require('../server/db').USE_MONGO) {
+        // Serverless 多实例/热实例会缓存旧数据：每个请求先从 Mongo 读最新，
+        // 避免"写操作已落库但读到旧快照"（如升级专业分站后仍显示普通分站、删除后刷新还在）
+        await require('../server/db').reload();
       }
+    } catch (e) {
+      console.error('[db] 请求前数据加载失败:', e.message);
+      return res.status(503).json({ code: 1, msg: '数据加载失败，请刷新重试' });
     }
+    next();
+  });
+
+  // 响应前统一落库：本请求只要发生过写操作（dirty），就在 JSON 响应真正发出前等待持久化完成，
+  // 兜底所有路由（含未显式 await flushNow 的管理后台写操作），根治 Serverless 冻结导致的"提示成功但刷新丢失"
+  application.use('/api', (req, res, next) => {
+    const db = require('../server/db');
+    if (!db.USE_MONGO) return next();
+    const origJson = res.json.bind(res);
+    res.json = (body) => {
+      db.flushNow()
+        .catch(() => {})
+        .then(() => origJson(body));
+      return res;
+    };
     next();
   });
 
