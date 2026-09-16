@@ -85,6 +85,7 @@ function createApp() {
   application.use('/api/user', (req, res, next) => require('../server/routes/user')(req, res, next));
   application.use('/api/admin', (req, res, next) => require('../server/routes/admin')(req, res, next));
   application.use('/api/pay', (req, res, next) => require('../server/routes/pay')(req, res, next));
+  application.use('/api/branch', (req, res, next) => require('../server/routes/branch')(req, res, next));
 
   // SPA 前端路由回退
   application.get('*', (req, res) => {

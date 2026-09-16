@@ -2718,6 +2718,7 @@ async function vOpenBranch() {
           </div>
           <div class="form-tip">分站账号即您的注册账号，进入分站管理或登录独立分站后台均用同一账号密码。</div>
           <div class="form-actions" style="gap:8px">
+            ${mine.type !== 'pro' ? `<button class="btn btn-primary btn-block" data-upgrade-pro style="background:linear-gradient(135deg,#7C3AED,#a855f7);color:#fff">${icon('users', 16)} 升级为专业分站（补差价，从余额扣除）</button>` : ''}
             <button class="btn btn-primary btn-block" data-goto="#/branch-manage">${icon('branch', 16)} 进入分站管理</button>
             <a class="btn btn-outline btn-block" href="/branch.html" target="_blank" rel="noopener">打开独立分站后台</a>
           </div>
@@ -2748,6 +2749,15 @@ async function vOpenBranch() {
       const root = $('#view');
       bindBack(root);
       bindGoto(root);
+      const upBtn = $('[data-upgrade-pro]', root);
+      if (upBtn) upBtn.addEventListener('click', async () => {
+        if (!confirm('升级为专业分站将补差价并从您的账户余额扣除，升级后可开通下级分站并获得分销收益。确定升级？')) return;
+        try {
+          await API.put('/branch/upgrade', {});
+          toast('恭喜，已升级为专业分站！', 'success');
+          setTimeout(() => location.hash = '#/branch-manage', 600);
+        } catch (e) { toast(e.message, 'error'); }
+      });
       if (has) return;
       const picker = $('#type-picker', root);
       if (picker) {
