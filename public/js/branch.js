@@ -10,7 +10,17 @@
   /* ---------- 分站会话 ---------- */
   function bToken() { return localStorage.getItem('branch_token'); }
   function bAuthed() { return !!bToken(); }
-  function bLogout() { localStorage.removeItem('branch_token'); bRender(); }
+  function bLogout() {
+    // BUG-007：通知后端使分站 Token 立即失效，再清本地态
+    try {
+      const tk = bToken();
+      if (tk) fetch('/api/auth/logout', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk }
+      }).catch(() => {});
+    } catch (e) { /* 忽略 */ }
+    localStorage.removeItem('branch_token'); bRender();
+  }
 
   /* ---------- 图形验证码（复用 /api/auth/captcha 共享模块） ---------- */
   let captchaToken = '';

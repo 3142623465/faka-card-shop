@@ -222,7 +222,17 @@ const Auth = {
   },
   set user(v) { v ? localStorage.setItem('user', JSON.stringify(v)) : localStorage.removeItem('user'); },
   get loggedIn() { return !!this.token; },
-  logout() { this.token = null; this.user = null; }
+  logout() {
+    // BUG-007：通知后端使当前 Token 立即失效（fire-and-forget，不阻塞退出），再清本地态
+    try {
+      const tk = this.token;
+      if (tk) fetch('/api/auth/logout', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk }
+      }).catch(() => {});
+    } catch (e) { /* 忽略，本地仍照常清除 */ }
+    this.token = null; this.user = null;
+  }
 };
 
 /* ---------- 订单状态中文映射 ---------- */

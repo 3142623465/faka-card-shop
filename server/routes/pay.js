@@ -25,6 +25,27 @@ function handleSettleFailure(d, o, channel, err) {
   console.error(`[pay] ${channel} 回调结算失败（订单 ${o.orderNo}，已标记待人工处理）:`, err);
 }
 
+/**
+ * 解析回调参数（BUG-002 第二层容错）。
+ * 优先用中间件已解析的 req.body；当其为空但存在 rawBody 时，兼容两种编码自行恢复：
+ * 表单串（a=1&b=2）走 URLSearchParams，JSON 走 JSON.parse，避免渠道误标 Content-Type 时拿不到参数。
+ */
+function parseNotifyParams(req) {
+  let params = { ...((req.body && typeof req.body === 'object') ? req.body : {}) };
+  if (!Object.keys(params).length && req.rawBody) {
+    const raw = String(req.rawBody).trim();
+    if (raw) {
+      try {
+        if (raw.charAt(0) === '{') params = JSON.parse(raw);
+        else params = Object.fromEntries(new URLSearchParams(raw));
+      } catch (e) {
+        params = {};
+      }
+    }
+  }
+  return params;
+}
+
 /** 微信支付回调（body 为 JSON 明文，头带签名；应答一律 HTTP 200 + JSON） */
 router.post('/notify/wechat', (req, res) => {
   const raw = req.rawBody || JSON.stringify(req.body || {});
@@ -64,7 +85,7 @@ router.post('/notify/wechat', (req, res) => {
 
 /** 支付宝回调（application/x-www-form-urlencoded，RSA2 验签） */
 router.post('/notify/alipay', (req, res) => {
-  const params = { ...(req.body || {}) };
+  const params = parseNotifyParams(req);
   let result;
   try {
     result = payments.handleAlipayNotify(params);
@@ -99,7 +120,7 @@ router.post('/notify/alipay', (req, res) => {
 
 /** 虎皮椒回调（application/x-www-form-urlencoded，MD5 验签） */
 router.post('/notify/xunhu', (req, res) => {
-  const params = { ...(req.body || {}) };
+  const params = parseNotifyParams(req);
   if (!xunhu.verifyNotify(params)) {
     console.warn('[pay] 虎皮椒回调验签失败');
     return res.status(400).send('fail');

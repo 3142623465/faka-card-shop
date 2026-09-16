@@ -80,11 +80,26 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
     res.status(404).json({ code: 1, msg: '接口不存在' });
   });
 
-  /* ---------- 错误兜底 ---------- */
+  /* ---------- 错误兜底（BUG-002 / BUG-008 修复）----------
+     1) express.json()/urlencoded 解析失败会带 err.status=400、err.type='entity.parse.*'，
+        必须返回 400 而非 500，且不得把内部解析细节（SyntaxError 文本）回传客户端。
+     2) 支付渠道回调（/api/pay/notify/*）即使 body 无法解析，也必须按渠道规范应答纯文本
+        （success/failure），不能抛 500 JSON，否则渠道侧会判定通知失败并反复重试、甚至关闭回调。 */
   app.use((err, req, res, next) => {
-    console.error('[server] 异常:', err.message);
+    const status = err.status || err.statusCode ||
+      ((err.type && String(err.type).indexOf('entity.parse') === 0) ? 400 : 500);
+    // 支付回调：解析/验签阶段异常统一回 failure（HTTP 400），交由渠道按其策略重试，不产生 500
+    if (/^\/api\/pay\/notify\//.test(req.path || '')) {
+      console.warn('[pay] 回调请求处理失败(' + status + '):', err.message);
+      try { require('./logger').error('pay-notify', err); } catch (e) { /* 忽略 */ }
+      return res.status(400).send('failure');
+    }
+    console.error('[server] 异常(' + status + '):', err.message);
     try { require('./logger').error('http', err); } catch (e) { /* 忽略 */ }
-    res.status(500).json({ code: 1, msg: '服务器内部错误：' + err.message });
+    res.status(status).json({
+      code: 1,
+      msg: status === 400 ? '请求格式错误' : '服务器内部错误'
+    });
   });
 
   const PORT = process.env.PORT || 3000;

@@ -642,7 +642,8 @@ router.post('/orders/:id/refund', auth.requireAdmin, (req, res) => {
   const o = d.orders.find((x) => x.id === Number(req.params.id));
   if (!o) return res.json(util.fail('订单不存在'));
   if (!['paid', 'shipped'].includes(o.status)) return res.json(util.fail('当前状态不可退款'));
-  refundOrder(d, o, reason);
+  const done = refundOrder(d, o, reason);
+  if (!done) return res.json(util.fail('订单已退款，请勿重复操作'));
   db.save();
   res.json(util.ok({ msg: '已退款' }));
 });
@@ -708,8 +709,12 @@ router.delete('/orders/:id', auth.requireAdmin, (req, res) => {
   res.json(util.ok({ msg: '订单已删除' }));
 });
 
-/** 退款公共逻辑：恢复库存/卡密、返还优惠券、冲正分站分成 */
+/** 退款公共逻辑：恢复库存/卡密、返还优惠券、冲正分站分成。
+ *  返回 true=本次执行了退款；false=订单已退款/已取消，已幂等跳过，防止重复扣积分、重复回收卡密。 */
 function refundOrder(d, o, reason) {
+  // 幂等保护（资金安全）：已退款 / 已取消订单不得再次执行资产冲正。
+  // 场景：订单先经「订单退款」退过，关联售后单又被点「同意退款」，会导致积分被重复扣回、消息重复推送。
+  if (o.status === 'refunded' || o.status === 'cancelled') return false;
   o.status = 'refunded';
   o.cancelReason = reason;
   o.cancelledAt = util.now();
@@ -759,6 +764,7 @@ function refundOrder(d, o, reason) {
     title: '订单已退款', content: `订单 ${o.orderNo} 已退款 ¥${o.payAmount.toFixed(2)}，款项将原路退回。原因：${reason}`,
     isRead: 0, createdAt: util.now()
   });
+  return true;
 }
 
 /* ================= 售后管理 ================= */
@@ -789,10 +795,17 @@ router.post('/aftersales/:id/handle', auth.requireAdmin, (req, res) => {
   if (!o) return res.json(util.fail('关联订单不存在'));
 
   if (action === 'approve') {
+    // 资金安全：仅已付款后的订单（待发货/待收货/已完成）可走售后退款；
+    // 待付款、待确认收款、已取消、已退款一律拦截，防止与「订单退款」重复执行导致积分/卡密重复冲正。
+    const statusTextMap = { pending: '待付款', pending_confirm: '待确认收款', cancelled: '已取消', refunded: '已退款' };
+    if (!['paid', 'shipped', 'completed'].includes(o.status)) {
+      return res.json(util.fail('订单当前为「' + (statusTextMap[o.status] || o.status) + '」状态，不可退款，请勿重复操作'));
+    }
+    const done = refundOrder(d, o, '售后退款：' + (reply || a.reason));
+    if (!done) return res.json(util.fail('订单已退款，请勿重复操作'));
     a.status = 'approved';
     a.reply = util.sanitizeHtml(reply).slice(0, 200) || '同意退款';
     a.handledAt = util.now();
-    refundOrder(d, o, '售后退款：' + (reply || a.reason));
   } else if (action === 'reject') {
     a.status = 'rejected';
     a.reply = util.sanitizeHtml(reply).slice(0, 200) || '不符合退款条件';

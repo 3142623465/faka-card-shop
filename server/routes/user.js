@@ -265,6 +265,31 @@ function fmtDate(ts) {
 
 /* ================= 订单 ================= */
 
+/* ---------- 下单并发控制（BUG-001 修复：防并发超卖）----------
+   进程内串行锁：同一时刻只允许一个下单事务执行「库存校验 + 订单创建」，
+   配合 calcOrder 内的「未付款订单库存占用」校验，保证库存=1 的商品在高并发下也只成一单。
+   说明：本系统数据在内存中同步读改写，锁内临界区天然原子；锁主要用于杜绝未来引入异步
+   （Mongo 实时读写等）后出现的检查-扣减竞态。多实例部署需改用 Redis 等分布式锁。 */
+let orderChain = Promise.resolve();
+function withOrderLock(task) {
+  const run = orderChain.then(() => task());
+  orderChain = run.then(() => {}, () => {}); // 成败都续链，避免一次异常导致后续永久挂起
+  return run;
+}
+
+/** 某商品被「待付款 / 待确认收款」订单占用的数量（已下单未最终成交，需预留库存） */
+function pendingOccupiedQty(d, productId, excludeOrderId) {
+  let n = 0;
+  for (const o of d.orders) {
+    if (o.status !== 'pending' && o.status !== 'pending_confirm') continue;
+    if (excludeOrderId && o.id === excludeOrderId) continue;
+    for (const g of (o.goods || [])) {
+      if (g.productId === productId) n += g.quantity;
+    }
+  }
+  return n;
+}
+
 /** 结算前试算（前端也可自行计算，这里供校验用） */
 function calcOrder(d, items, coupon) {
   let goodsAmount = 0;
@@ -272,10 +297,12 @@ function calcOrder(d, items, coupon) {
   for (const it of items) {
     const p = d.products.find((x) => x.id === it.productId);
     if (!p || p.status === 0) return { error: '部分商品已下架' };
-    // 数量硬上限：1 ≤ qty ≤ min(stock, 999)，防 URL 手改绕过前端限制
+    // 数量硬上限：1 ≤ qty ≤ min(库存-未付款占用, 999)，防 URL 手改绕过前端限制
     const q = it.quantity;
     if (!Number.isInteger(q) || q < 1 || q > 999) return { error: '购买数量不合法' };
-    if (q > shop.stockOf(p, d)) return { error: `「${p.name}」库存不足` };
+    // BUG-001：可售量需扣除其它未付款订单已占用的部分，防止并发/连续下单超卖
+    const available = shop.stockOf(p, d) - pendingOccupiedQty(d, p.id);
+    if (q > available) return { error: `「${p.name}」库存不足` };
     goodsAmount += p.price * q;
     goods.push({
       productId: p.id, name: p.name, subtitle: p.subtitle || '', image: (p.images || [])[0] || '/img/placeholder.svg',
@@ -303,75 +330,100 @@ function calcOrder(d, items, coupon) {
 /** 创建订单：from=cart（购物车勾选项）或 buynow（直接购买） */
 router.post('/orders', auth.requireUser, (req, res) => {
   const { from = 'cart', cartIds = [], productId, quantity = 1, addressId, couponId, remark } = req.body || {};
-  const d = db.load();
 
-  // 地址
-  const addr = d.addresses.find((a) => a.id === Number(addressId) && a.userId === req.user.id);
-  if (!addr) return res.json(util.fail('请选择收货地址'));
+  // —— 锁外参数校验（不依赖共享数据）——
+  const d0 = db.load();
+  const addr0 = d0.addresses.find((a) => a.id === Number(addressId) && a.userId === req.user.id);
+  if (!addr0) return res.json(util.fail('请选择收货地址'));
 
-  // 商品条目
-  let items = [];
+  // BUG-003 / BUG-004：buynow 数量必须是 1-999 的整数，负数 / 0 / 非数字 / 超限一律拒绝，
+  // 不再用 Math.max(1, parseInt(q)||1) 静默钳制，避免业务歧义和异常订单。
+  let buyItems = null;
   if (from === 'buynow') {
-    items = [{ productId: Number(productId), quantity: Math.max(1, Math.min(999, parseInt(quantity) || 1)) }];
+    const rawQty = parseInt(quantity, 10);
+    if (!Number.isInteger(rawQty) || rawQty < 1 || rawQty > 999) {
+      return res.json(util.fail('购买数量不合法（需为 1-999 的整数）'));
+    }
+    buyItems = [{ productId: Number(productId), quantity: rawQty }];
   } else {
     const ids = (Array.isArray(cartIds) ? cartIds : []).map(Number);
     if (!ids.length) return res.json(util.fail('请选择要结算的商品'));
-    items = d.cart
-      .filter((c) => c.userId === req.user.id && ids.includes(c.id))
-      .map((c) => ({ productId: c.productId, quantity: c.quantity }));
-    if (!items.length) return res.json(util.fail('购物车商品不存在'));
   }
 
-  // 优惠券
-  let coupon = null;
-  if (couponId) {
-    const uc = d.userCoupons.find((x) => x.id === Number(couponId) && x.userId === req.user.id && x.status === 'unused');
-    if (!uc) return res.json(util.fail('优惠券不可用'));
-    coupon = d.coupons.find((x) => x.id === uc.couponId);
-  }
+  // —— 锁内事务：库存校验（含未付款占用）+ 订单创建，串行化杜绝并发超卖（BUG-001）——
+  withOrderLock(() => {
+    const d = db.load();
+    const addr = d.addresses.find((a) => a.id === Number(addressId) && a.userId === req.user.id);
+    if (!addr) return { error: '请选择收货地址' };
 
-  const calc = calcOrder(d, items, coupon);
-  if (calc.error) return res.json(util.fail(calc.error));
-  if (!isFinite(calc.payAmount) || calc.payAmount < 0) return res.json(util.fail('订单金额异常，请联系客服'));
+    // 锁内重新读取购物车条目（防止锁外快照过期）
+    let items;
+    if (from === 'buynow') {
+      items = buyItems;
+    } else {
+      const ids = (Array.isArray(cartIds) ? cartIds : []).map(Number);
+      items = d.cart
+        .filter((c) => c.userId === req.user.id && ids.includes(c.id))
+        .map((c) => ({ productId: c.productId, quantity: c.quantity }));
+      if (!items.length) return { error: '购物车商品不存在' };
+    }
 
-  const order = {
-    id: util.nextId('orders'),
-    orderNo: util.genOrderNo(),
-    userId: req.user.id,
-    branchId: calc.goods.find((g) => g.branchId) ? calc.goods.find((g) => g.branchId).branchId : 0,
-    branchIds: Array.from(new Set(calc.goods.map((g) => g.branchId || 0).filter((x) => x > 0))),
-    goods: calc.goods,
-    goodsAmount: calc.goodsAmount,
-    couponId: calc.usedCouponId,
-    couponAmount: calc.couponAmount,
-    payAmount: calc.payAmount,
-    address: { name: addr.name, phone: addr.phone, region: addr.region, detail: addr.detail },
-    remark: util.sanitizeHtml(remark).slice(0, 200),
-    status: 'pending',       // pending/paid/shipped/completed/cancelled/refunded
-    payMethod: '', payChannel: '', payAt: 0,
-    shippedAt: 0, completedAt: 0, cancelledAt: 0,
-    cancelReason: '',
-    trackingNo: '', logistics: '',
-    cardsDelivered: 0,
-    createdAt: util.now()
-  };
-  d.orders.push(order);
+    // 优惠券（锁内读取最新状态，避免并发重复占用）
+    let coupon = null;
+    if (couponId) {
+      const uc = d.userCoupons.find((x) => x.id === Number(couponId) && x.userId === req.user.id && x.status === 'unused');
+      if (!uc) return { error: '优惠券不可用' };
+      coupon = d.coupons.find((x) => x.id === uc.couponId);
+    }
 
-  // 占用优惠券
-  if (coupon) {
-    const uc = d.userCoupons.find((x) => x.id === Number(couponId) && x.userId === req.user.id && x.status === 'unused');
-    uc.status = 'used';
-    uc.orderId = order.id;
-    uc.usedAt = util.now();
-  }
+    const calc = calcOrder(d, items, coupon);
+    if (calc.error) return { error: calc.error };
+    if (!isFinite(calc.payAmount) || calc.payAmount < 0) return { error: '订单金额异常，请联系客服' };
 
-  // 购物车来源：移除已结算项
-  if (from !== 'buynow') {
-    d.cart = d.cart.filter((c) => !(c.userId === req.user.id && cartIds.map(Number).includes(c.id)));
-  }
+    const order = {
+      id: util.nextId('orders'),
+      orderNo: util.genOrderNo(),
+      userId: req.user.id,
+      branchId: calc.goods.find((g) => g.branchId) ? calc.goods.find((g) => g.branchId).branchId : 0,
+      branchIds: Array.from(new Set(calc.goods.map((g) => g.branchId || 0).filter((x) => x > 0))),
+      goods: calc.goods,
+      goodsAmount: calc.goodsAmount,
+      couponId: calc.usedCouponId,
+      couponAmount: calc.couponAmount,
+      payAmount: calc.payAmount,
+      address: { name: addr.name, phone: addr.phone, region: addr.region, detail: addr.detail },
+      remark: util.sanitizeHtml(remark).slice(0, 200),
+      status: 'pending',       // pending/paid/shipped/completed/cancelled/refunded
+      payMethod: '', payChannel: '', payAt: 0,
+      shippedAt: 0, completedAt: 0, cancelledAt: 0,
+      cancelReason: '',
+      trackingNo: '', logistics: '',
+      cardsDelivered: 0,
+      createdAt: util.now()
+    };
+    d.orders.push(order);
 
-  db.save();
-  res.json(util.ok({ orderId: order.id, payAmount: order.payAmount, orderNo: order.orderNo }));
+    // 占用优惠券
+    if (coupon) {
+      const uc = d.userCoupons.find((x) => x.id === Number(couponId) && x.userId === req.user.id && x.status === 'unused');
+      if (uc) { uc.status = 'used'; uc.orderId = order.id; uc.usedAt = util.now(); }
+    }
+
+    // 购物车来源：移除已结算项
+    if (from !== 'buynow') {
+      d.cart = d.cart.filter((c) => !(c.userId === req.user.id && (Array.isArray(cartIds) ? cartIds : []).map(Number).includes(c.id)));
+    }
+
+    db.save();
+    return { ok: { orderId: order.id, payAmount: order.payAmount, orderNo: order.orderNo } };
+  }).then((r) => {
+    if (!r || r.error) return res.json(util.fail((r && r.error) || '下单失败，请稍后重试'));
+    res.json(util.ok(r.ok));
+  }).catch((e) => {
+    console.error('[order] 创建订单失败:', e.message);
+    try { require('../logger').error('order-create', e); } catch (e2) { /* 忽略 */ }
+    res.json(util.fail('下单失败，请稍后重试'));
+  });
 });
 
 /** 自动处理超时订单（挂起 30 分钟自动取消 / 发货 7 天自动确认） */

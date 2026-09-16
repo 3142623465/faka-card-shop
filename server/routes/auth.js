@@ -275,7 +275,8 @@ router.post('/register-email', (req, res) => {
     phone: '',
     email: mail,
     passwordHash: util.hashPassword(password),
-    nickname: nickname || '用户' + mail.split('@')[0],
+    // BUG-005：昵称入库前剥离 HTML/脚本，防存储型 XSS；纯标签/空值回退默认昵称
+    nickname: (nickname ? util.sanitizeHtml(nickname) : '') || '用户' + mail.split('@')[0],
     avatar: settings.defaultAvatar || '/img/avatar.svg',
     gender: '', birthday: '',
     points: settings.registerPoints || 50,
@@ -393,7 +394,8 @@ router.put('/profile', auth.requireUser, (req, res) => {
   const { nickname, avatar, gender, birthday, email } = req.body || {};
   const u = req.user;
   if (nickname !== undefined) {
-    const n = String(nickname).trim();
+    // BUG-006：修改资料同样剥离 HTML/脚本后再校验长度，防存储型 XSS
+    const n = util.sanitizeHtml(String(nickname));
     if (n.length < 2 || n.length > 20) return res.json(util.fail('昵称需 2-20 个字符'));
     u.nickname = n;
   }
@@ -404,6 +406,21 @@ router.put('/profile', auth.requireUser, (req, res) => {
   if (email !== undefined) return res.json(util.fail('修改邮箱请使用「绑定邮箱」功能（需邮箱验证码验证）'));
   db.save();
   res.json(util.ok({ user: publicUser(u) }));
+});
+
+/** 登出：使当前 Token 立即失效（BUG-007）。
+ *  用户 / 管理员 / 分站三类会话统一存于 d.sessions，按请求头 Token 精确删除，
+ *  退出后该 Token 立即不可用，而非仅在前端清除本地存储。 */
+router.post('/logout', (req, res) => {
+  const h = req.headers['authorization'] || '';
+  const m = /^Bearer\s+(.+)$/i.exec(h);
+  if (m) {
+    const d = db.load();
+    const before = (d.sessions || []).length;
+    d.sessions = (d.sessions || []).filter((s) => s.token !== m[1]);
+    if (d.sessions.length !== before) db.save();
+  }
+  res.json(util.ok({ msg: '已退出登录' }));
 });
 
 module.exports = router;

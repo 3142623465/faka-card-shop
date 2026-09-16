@@ -112,6 +112,14 @@ function bindLayout(activeKey) {
   const root = $('#admin-main');
   $$('[data-goto]', root).forEach((el) => el.addEventListener('click', () => { location.hash = el.getAttribute('data-goto'); }));
   $('[data-logout]', root).addEventListener('click', () => {
+    // BUG-007：通知后端使管理员 Token 立即失效，再清本地态
+    try {
+      const tk = localStorage.getItem('admin_token');
+      if (tk) fetch('/api/auth/logout', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk }
+      }).catch(() => {});
+    } catch (e) { /* 忽略 */ }
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_username');
     location.hash = '#/login';
