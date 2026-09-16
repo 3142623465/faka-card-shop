@@ -13,13 +13,13 @@ const settle = require('../settle');
 const branchSign = require('../branch-sign');
 
 /** 管理员登录 */
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body || {};
   const s = db.load().settings;
   if (username !== s.adminUsername || !util.verifyPassword(password, s.adminPasswordHash)) {
     return res.json(util.fail('账号或密码错误'));
   }
-  const token = auth.createSession(0, 'admin');
+  const token = await auth.createSession(0, 'admin');
   res.json(util.ok({ token, username: s.adminUsername, siteName: s.siteName }));
 });
 

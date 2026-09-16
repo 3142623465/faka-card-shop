@@ -95,7 +95,7 @@ function publicUser(u) {
 }
 
 /** 发送验证码 */
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const bd = req.body || {};
   const { password, captchaToken, captchaCode } = bd;
   const acc = ((bd.email || bd.account || '') + '').trim().toLowerCase();
@@ -108,7 +108,7 @@ router.post('/login', (req, res) => {
     // 超级管理员：在前端登录页直接用后台账号登录 → 直接进入管理后台
     const s = d.settings;
     if (acc.toLowerCase() === (s.adminUsername || '').toLowerCase() && util.verifyPassword(password, s.adminPasswordHash)) {
-      const token = auth.createSession(0, 'admin');
+      const token = await auth.createSession(0, 'admin');
       rateClear(clientKey(req, pwdKey));
       return res.json(util.ok({ token, role: 'admin', isAdmin: true, username: s.adminUsername, siteName: s.siteName }));
     }
@@ -125,13 +125,13 @@ router.post('/login', (req, res) => {
   if (user.status === 0) return res.json(util.fail('账号已被禁用，请联系客服'));
   user.lastLoginAt = util.now();
   db.save();
-  const token = auth.createSession(user.id, 'user');
+  const token = await auth.createSession(user.id, 'user');
   notifyLoginSecurity(user.id, token);
   res.json(util.ok({ token, user: publicUser(user), role: 'user' }));
 });
 
 /** 登录（验证码登录，未注册自动注册） */
-router.post('/login-email-code', (req, res) => {
+router.post('/login-email-code', async (req, res) => {
   const { email, code } = req.body || {};
   const em = (email || '').trim().toLowerCase();
   if (!EMAIL_RE.test(em)) return res.json(util.fail('邮箱格式不正确'));
@@ -179,7 +179,7 @@ router.post('/login-email-code', (req, res) => {
   if (user.status === 0) return res.json(util.fail('账号已被禁用，请联系客服'));
   user.lastLoginAt = util.now();
   db.save();
-  const token = auth.createSession(user.id, 'user');
+  const token = await auth.createSession(user.id, 'user');
   notifyLoginSecurity(user.id, token);
   res.json(util.ok({ token, user: publicUser(user) }));
 });
@@ -266,7 +266,7 @@ router.post('/send-email-code-authed', auth.requireUser, async (req, res) => {
 });
 
 /** 邮箱注册（邮箱+验证码+密码） */
-router.post('/register-email', (req, res) => {
+router.post('/register-email', async (req, res) => {
   const { email, code, password, nickname } = req.body || {};
   const mail = (email || '').trim().toLowerCase();
   if (!EMAIL_RE.test(mail)) return res.json(util.fail('邮箱格式不正确'));
@@ -302,7 +302,7 @@ router.post('/register-email', (req, res) => {
   }
   d.messages.push({ id: util.nextId('messages'), userId: user.id, type: 'system', title: '欢迎加入' + settings.siteName, content: `亲爱的 ${user.nickname}，欢迎来到${settings.siteName}！本站所有卡密均为自动发货，付款后立即到账。如有疑问请联系在线客服。`, isRead: 0, createdAt: util.now() });
   db.save();
-  const token = auth.createSession(user.id, 'user');
+  const token = await auth.createSession(user.id, 'user');
   res.json(util.ok({ token, user: publicUser(user) }));
 });
 

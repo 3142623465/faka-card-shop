@@ -26,7 +26,7 @@ function branchRateAllow(key) {
   branchRate.set(key, rec);
   return true;
 }
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password, captchaToken, captchaCode } = req.body || {};
   if (!username || !password) return res.json(util.fail('请输入账号和密码'));
   if (!captcha.verifyCaptcha(captchaToken, captchaCode)) return res.json(util.fail('图形验证码错误，请刷新后重试'));
@@ -52,7 +52,7 @@ router.post('/login', (req, res) => {
   if (branch.status === 0) return res.json(util.fail('分站已被停用，请联系上级'));
   branch.lastLoginAt = util.now();
   db.save();
-  const token = auth.createSession(branch.id, 'branch');
+  const token = await auth.createSession(branch.id, 'branch');
   res.json(util.ok({
     token, role: 'branch',
     branch: { id: branch.id, name: branch.name, type: branch.type, username: branch.username }

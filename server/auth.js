@@ -10,7 +10,7 @@ const util = require('./util');
 
 const TTL = 7 * 86400; // 会话有效期 7 天
 
-function createSession(userId, role) {
+async function createSession(userId, role) {
   const d = db.load();
   const token = crypto.randomBytes(24).toString('hex');
   const now = util.now();
@@ -19,21 +19,29 @@ function createSession(userId, role) {
   d.sessions = d.sessions.filter((s) => s.expiresAt > now);
   d.sessions.push({ token, userId, role, createdAt: now, expiresAt: now + TTL });
   db.save();
+  // Serverless(Mongo) 下必须在返回 token 前把会话落库，否则下一请求（可能落在新实例）
+  // 从数据库读不到该会话，表现为"登录成功却进不去/被弹回登录页"
+  await db.flushNow();
   return token;
 }
 
-function sessionFromReq(req) {
+async function sessionFromReq(req) {
   const h = req.headers['authorization'] || '';
   const m = /^Bearer\s+(.+)$/i.exec(h);
   if (!m) return null;
-  const d = db.load();
-  const s = (d.sessions || []).find((x) => x.token === m[1] && x.expiresAt > util.now());
+  const token = m[1];
+  const find = (d) => (d.sessions || []).find((x) => x.token === token && x.expiresAt > util.now());
+  let s = find(db.load());
+  // Serverless 多实例：本实例内存快照可能早于登录创建，找不到时回数据库重读一次再判定
+  if (!s && db.USE_MONGO) {
+    try { await db.reload(); s = find(db.load()); } catch (e) { /* 忽略重读异常，按未登录处理 */ }
+  }
   return s || null;
 }
 
 function makeRequire(role, attach, checkDisabled) {
-  return (req, res, next) => {
-    const s = sessionFromReq(req);
+  return async (req, res, next) => {
+    const s = await sessionFromReq(req);
     if (!s || s.role !== role) return res.status(401).json(util.fail('未登录或登录已过期', 401));
     const d = db.load();
     let obj = null;
@@ -55,8 +63,8 @@ const requireBranch = makeRequire('branch', (req, b) => { req.branch = b; }, tru
  * 分站接口兼容中间件：分站 token 或「已开通分站的用户 token」均可访问。
  * 用于用户端内嵌分站管理（无需跳转独立分站后台）。
  */
-function requireBranchOrUser(req, res, next) {
-  const s = sessionFromReq(req);
+async function requireBranchOrUser(req, res, next) {
+  const s = await sessionFromReq(req);
   if (!s) return res.status(401).json(util.fail('未登录或登录已过期', 401));
   const d = db.load();
   if (s.role === 'branch') {
@@ -81,8 +89,8 @@ function requireBranchOrUser(req, res, next) {
   return res.status(401).json(util.fail('未登录或登录已过期', 401));
 }
 
-function optionalUser(req, res, next) {
-  const s = sessionFromReq(req);
+async function optionalUser(req, res, next) {
+  const s = await sessionFromReq(req);
   if (s && s.role === 'user') {
     const d = db.load();
     const user = d.users.find((u) => u.id === s.userId);
