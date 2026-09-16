@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>发卡网系统 · 缺陷修复与上线交付报告（2026-09-16）</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#ffffff; --ink:#1f2733; --sub:#5b6675; --line:#e6eaf1;
+    --brand:#2563eb; --brand-d:#1d4ed8; --ok:#16a34a; --ok-bg:#ecfdf3;
+    --p1:#dc2626; --p1-bg:#fef2f2; --p2:#d97706; --p2-bg:#fffbeb;
+    --code-bg:#0f172a; --code-ink:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.7;font-size:15px}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 64px}
+  header.hero{background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#3b82f6 100%);color:#fff;border-radius:18px;padding:34px 38px;box-shadow:0 12px 30px rgba(37,99,235,.22)}
+  header.hero h1{margin:0 0 8px;font-size:26px;letter-spacing:.5px}
+  header.hero p{margin:4px 0;color:#dbeafe}
+  .badges{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px}
+  .badge{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:5px 14px;font-size:13px}
+  section.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 30px;margin-top:22px;box-shadow:0 2px 10px rgba(15,23,42,.04)}
+  h2{font-size:19px;margin:0 0 18px;padding-left:12px;border-left:4px solid var(--brand)}
+  h3{font-size:16px;margin:22px 0 10px;color:var(--brand-d)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#f8fafc;font-weight:600;color:#334155;white-space:nowrap}
+  tr:nth-child(even) td{background:#fafbfd}
+  code{background:#eef2ff;color:#3730a3;padding:1px 6px;border-radius:5px;font-family:Consolas,Menlo,monospace;font-size:12.5px}
+  .tag{display:inline-block;border-radius:6px;padding:1px 9px;font-size:12px;font-weight:700;white-space:nowrap}
+  .t-p1{background:var(--p1-bg);color:var(--p1);border:1px solid #fecaca}
+  .t-p2{background:var(--p2-bg);color:var(--p2);border:1px solid #fde68a}
+  .t-ok{background:var(--ok-bg);color:var(--ok);border:1px solid #bbf7d0}
+  .t-fund{background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:6px 0 4px}
+  .stat{border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center;background:#fbfdff}
+  .stat .num{font-size:30px;font-weight:800;color:var(--ok);line-height:1.1}
+  .stat .lbl{font-size:13px;color:var(--sub);margin-top:4px}
+  .pass-line{display:flex;align-items:center;gap:8px;background:var(--ok-bg);border:1px solid #bbf7d0;color:#15803d;border-radius:10px;padding:10px 14px;font-weight:600;margin:10px 0}
+  ul.clean{margin:8px 0;padding-left:0;list-style:none}
+  ul.clean li{padding:6px 0 6px 28px;position:relative;border-bottom:1px dashed var(--line)}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"✓";position:absolute;left:4px;top:6px;color:var(--ok);font-weight:800}
+  ul.dash{padding-left:22px}
+  ul.dash li{margin:5px 0}
+  .note{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;color:#1e40af;font-size:13.5px;margin:12px 0}
+  .warn{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;color:#92400e;font-size:13.5px;margin:12px 0}
+  .file{font-family:Consolas,Menlo,monospace;font-size:12.5px;color:#475569}
+  footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:26px}
+  .mono{font-family:Consolas,Menlo,monospace}
+  @media(max-width:720px){.stat-grid{grid-template-columns:repeat(2,1fr)}header.hero{padding:26px 22px}section.card{padding:20px 18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>发卡网系统 · 缺陷修复与上线交付报告</h1>
+    <p>依据《发卡网系统全量测试报告-20260916》逐项修复并完成回归验证、数据清理与上线部署</p>
+    <div class="badges">
+      <span class="badge">报告日期：2026-09-16</span>
+      <span class="badge">提交版本：<b class="mono">f41ece3</b>（main）</span>
+      <span class="badge">仓库：faka-card-shop</span>
+      <span class="badge">部署：GitHub → Vercel 自动部署</span>
+      <span class="badge">结论：<b>已达到上线部署标准</b></span>
+    </div>
+  </header>
+
+  <!-- 概览 -->
+  <section class="card">
+    <h2>一、修复与验证总览</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">9</div><div class="lbl">缺陷全部修复<br>（报告 8 + 资金加固 1）</div></div>
+      <div class="stat"><div class="num">164</div><div class="lbl">回归用例全部通过<br>107 + 37 + 20</div></div>
+      <div class="stat"><div class="num">29</div><div class="lbl">修复专项断言<br>全部通过</div></div>
+      <div class="stat"><div class="num">0</div><div class="lbl">残留测试数据<br>（空库待运营）</div></div>
+    </div>
+    <div class="pass-line">● 全量测试报告中的 BUG-001 ~ BUG-008 已 100% 修复并验证；另修复 1 项测试中新发现的重复退款资金漏洞。</div>
+    <div class="note">说明：测试报告中标记为「非缺陷 / 建议项」的现象（验证码刷新正常、后台编辑删除落库正常、交易闭环正常等）经浏览器复测确认无需修复；两项低优先级体验建议见文末附录。</div>
+  </section>
+
+  <!-- 缺陷明细 -->
+  <section class="card">
+    <h2>二、缺陷修复明细</h2>
+    <table>
+      <thead>
+        <tr><th style="width:86px">编号</th><th style="width:64px">级别</th><th style="width:150px">模块</th><th>问题与根因</th><th>修复方案</th><th style="width:150px">验证结果</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>BUG-001</b></td><td><span class="tag t-p1">P1 严重</span></td><td>下单 / 库存</td>
+          <td><b>并发下单超卖。</b>下单（pending）时不预留库存，库存=1 的商品可被连续/并发创建多个订单，支付环节才扣减，存在超卖与重复支付纠纷风险。</td>
+          <td>下单临界区加<b>进程内串行锁</b>（<code>withOrderLock</code>），并引入<b>未付款订单库存占用</b>校验：可售量 = 现有库存 − 待付款/待确认订单占用量，锁内重查最新数据后再建单；订单取消/超时自动释放占用。</td>
+          <td><span class="tag t-ok">已验证</span><br>库存=1 并发 6 单，仅 1 单成交，其余返回「库存不足」。</td>
+        </tr>
+        <tr>
+          <td><b>BUG-002</b></td><td><span class="tag t-p1">P1 严重</span></td><td>支付回调</td>
+          <td><b>回调收到误标 <code>Content-Type: application/json</code> 的表单串时，<code>express.json()</code> 在中间件层抛错，统一回 500</b>，渠道判定通知失败会反复重试甚至关闭回调。</td>
+          <td>① 全局错误中间件识别解析错误（<code>entity.parse.failed</code>）回 400；对 <code>/api/pay/notify/*</code> 一律按渠道规范应答纯文本 <code>failure</code>，不回 500。② 回调路由新增 <code>parseNotifyParams()</code>，基于 <code>rawBody</code> 兼容表单串/JSON 两种编码。</td>
+          <td><span class="tag t-ok">已验证</span><br>误标 JSON 表单回调 → 400 + <code>failure</code>；正常表单编码回调不再 500。</td>
+        </tr>
+        <tr>
+          <td><b>BUG-003<br>BUG-004</b></td><td><span class="tag t-p2">P2 一般</span></td><td>直接购买</td>
+          <td><b>负数 / 0 / 超上限 / 非数字购买数量被 <code>Math.max(1, parseInt(q)||1)</code> 静默钳为 1</b>，产生业务歧义和异常订单。</td>
+          <td>立即购买分支改为<b>严格校验</b>：数量必须是 1–999 的整数，否则返回「购买数量不合法」，不再静默修正；结算试算同步加固数量与占用校验。</td>
+          <td><span class="tag t-ok">已验证</span><br>-1 / -100 / 0 / 1000 / "abc" / null 全部被拒；1 与 999 正常。</td>
+        </tr>
+        <tr>
+          <td><b>BUG-005<br>BUG-006</b></td><td><span class="tag t-p2">P2 一般</span></td><td>注册 / 个人资料</td>
+          <td><b>昵称存在存储型 XSS。</b>注册与「修改资料」均未过滤 HTML/脚本，恶意昵称（如 <code>&lt;script&gt;</code>、<code>&lt;img onerror&gt;</code>）入库后在后台/前台渲染可执行。</td>
+          <td>注册与改资料昵称入库前统一经 <code>util.sanitizeHtml()</code> 剥离所有标签并 trim；纯标签/空值回退默认昵称，改资料在净化后再做 2–20 长度校验。</td>
+          <td><span class="tag t-ok">已验证</span><br><code>&lt;script&gt;alert(1)&lt;/script&gt;小明&lt;b&gt;粗</code> 存储为「小明粗」，无任何标签。</td>
+        </tr>
+        <tr>
+          <td><b>BUG-007</b></td><td><span class="tag t-p2">P2 一般</span></td><td>登录 / 会话</td>
+          <td><b>无登出接口，<code>POST /api/auth/logout</code> 返回 404</b>，Token 在 7 天有效期内始终有效，前端仅清除本地存储，Token 泄露后无法主动失效。</td>
+          <td>后端新增 <code>POST /api/auth/logout</code>，按请求头 Token 精确删除服务端会话（用户/管理员/分站通用）；用户端、管理后台、分站后台三端「退出登录」均已接入该接口（<code>keepalive</code> 静默调用）。</td>
+          <td><span class="tag t-ok">已验证</span><br>登出后旧 Token 再访问受保护接口返回 401。</td>
+        </tr>
+        <tr>
+          <td><b>BUG-008</b></td><td><span class="tag t-p2">P2 一般</span></td><td>全局异常</td>
+          <td><b>全局 JSON 解析错误统一回 500 并回显 <code>SyntaxError</code> 内部信息</b>，状态码语义错误且泄漏实现细节。</td>
+          <td>全局错误中间件按 <code>err.status</code> 区分 400/500；400 返回通用「请求格式错误」，500 返回「服务器内部错误」，均不回传异常原文，错误详情仅写服务端日志。</td>
+          <td><span class="tag t-ok">已验证</span><br>非法 JSON 返回 400「请求格式错误」，响应体不含任何内部信息。</td>
+        </tr>
+        <tr>
+          <td><b>FUND-01</b></td><td><span class="tag t-fund">资金加固</span></td><td>退款 / 售后</td>
+          <td><b>重复退款导致积分被重复扣回（测试中新发现）。</b>订单先经「订单退款」退为已退款后，关联售后单仍为待处理，再点「同意退款」会二次执行退款逻辑，重复扣回积分、重复推送退款消息。</td>
+          <td><code>refundOrder()</code> 增加<b>幂等保护</b>：订单已退款/已取消直接跳过并返回 false；售后「同意退款」前校验订单状态，仅待发货/待收货/已完成可退，已退款等状态明确拒绝，杜绝二次资产冲正。</td>
+          <td><span class="tag t-ok">已验证</span><br>已退款订单再走售后同意 → 被拦截；该订单积分「退款扣回」流水仅 1 条（修复前为 2 条）。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>涉及代码文件</h3>
+    <table>
+      <thead><tr><th style="width:240px">文件</th><th>改动内容</th></tr></thead>
+      <tbody>
+        <tr><td class="file">server/server.js</td><td>重写全局错误中间件（BUG-002 / BUG-008）。</td></tr>
+        <tr><td class="file">server/routes/pay.js</td><td>新增 <code>parseNotifyParams()</code>，支付宝/虎皮椒回调基于 rawBody 容错取参（BUG-002）。</td></tr>
+        <tr><td class="file">server/routes/user.js</td><td>下单串行锁、未付款库存占用、严格数量校验（BUG-001 / 003 / 004）。</td></tr>
+        <tr><td class="file">server/routes/auth.js</td><td>注册/改资料昵称 sanitizeHtml、新增 logout 接口（BUG-005 / 006 / 007）。</td></tr>
+        <tr><td class="file">server/routes/admin.js</td><td>refundOrder 幂等、售后同意退款状态校验（FUND-01）。</td></tr>
+        <tr><td class="file">public/js/util.js、admin.js、branch.js</td><td>用户/管理员/分站三端「退出登录」接入后端 logout（BUG-007）。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 回归 -->
+  <section class="card">
+    <h2>三、回归验证结果</h2>
+    <table>
+      <thead><tr><th>测试套件</th><th style="width:120px">用例数</th><th style="width:120px">结果</th><th>覆盖范围</th></tr></thead>
+      <tbody>
+        <tr><td>后端综合回归 <span class="file">api-test-round3.js</span></td><td>107</td><td><span class="tag t-ok">107 通过</span></td><td>公开接口、认证、用户业务、管理后台、分站分销、安全专项、手动支付。</td></tr>
+        <tr><td>手动支付链路 <span class="file">api-test-manual-pay.js</span></td><td>37</td><td><span class="tag t-ok">37 通过</span></td><td>手动转账发起、确认收款、自动发货、幂等、待确认取消券释放。</td></tr>
+        <tr><td>边界与安全 <span class="file">api-test-edge.js</span></td><td>20</td><td><span class="tag t-ok">20 通过</span></td><td>负数/0 数量、弱密码、NoSQL 注入、负价格、空名商品、不存在接口等。</td></tr>
+        <tr><td>修复专项 <span class="file">verify-fixes.js</span></td><td>29</td><td><span class="tag t-ok">29 通过</span></td><td>并发超卖、回调容错、非法数量、昵称 XSS、登出失效、重复退款防护。</td></tr>
+      </tbody>
+    </table>
+    <div class="pass-line">● 合计 193 项断言全部通过，0 失败。所有服务端改动文件均通过 <code>node --check</code> 语法校验。</div>
+    <div class="note">浏览器端复测：用户端 14 个路由无控制台错误；后台商品/分类/卡密/订单的新增、编辑、删除、CSV 导出均真实落库；交易闭环（下单 → 支付 → 自动发卡 → 卡密展示 → 售后申请 → 领券 → 客服回复）正常。</div>
+  </section>
+
+  <!-- 数据清理 -->
+  <section class="card">
+    <h2>四、测试数据清理与上线状态</h2>
+    <p>已执行 <code>scripts/prepare-production.js</code> 一键上线清理（执行前自动备份至 <span class="file">backups/</span>）：</p>
+    <ul class="clean">
+      <li><b>已清空：</b>商品、分类、卡密、订单、售后、用户、优惠券、收货地址、购物车、收藏、消息、积分/余额流水、工单、客服对话、会话、分站、FAQ、轮播图、热搜词、快捷导航等全部业务/演示数据（计数均为 0，无 <code>@test.com</code> 残留）。</li>
+      <li><b>已保留：</b>站点全部配置 <code>settings</code>（站点名称、管理员账号 admin 及其密码哈希、支付渠道密钥、积分比例、自动取消时长等）。</li>
+      <li><b>发信邮箱与授权码保留：</b><code>.env</code> 中的 <code>SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM</code> 均原样保留，未被清理、也不会被提交到 Git。</li>
+      <li>ID 计数器已重置；空库启动冒烟通过：站点接口、商品接口（total=0）、管理员登录、后台统计均正常。</li>
+    </ul>
+    <div class="warn"><b>安全提醒：</b><span class="file">.env</span>、<span class="file">data/</span>、<span class="file">uploads/</span>、<span class="file">logs/</span>、<span class="file">backups/</span>、<span class="file">node_modules/</span> 均已在 <code>.gitignore</code> 中，不会进入仓库；邮箱授权码等密钥只通过部署平台的环境变量配置。</div>
+  </section>
+
+  <!-- 部署 -->
+  <section class="card">
+    <h2>五、部署与上线后配置</h2>
+    <p>代码已提交并推送到 GitHub 仓库 <span class="file">3142623465/faka-card-shop</span> 的 <code>main</code> 分支（最新提交 <span class="mono">f41ece3</span>），Vercel 已关联该仓库，<b>推送后自动触发重新部署</b>，无需手动替换文件。</p>
+    <h3>Vercel 环境变量（生产必需）</h3>
+    <table>
+      <thead><tr><th style="width:200px">变量</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td class="file">NODE_ENV</td><td>设为 <code>production</code>（关闭沙箱支付/测试验证码回显等开发开关）。</td></tr>
+        <tr><td class="file">MONGODB_URI</td><td><b>必填</b>。Vercel 无持久磁盘，必须使用 MongoDB 连接串承载业务数据，否则重启后数据丢失。</td></tr>
+        <tr><td class="file">SMTP_USER / SMTP_PASS</td><td>发信邮箱账号与授权码（即本地 <code>.env</code> 保留的同一组），另需 SMTP_HOST / SMTP_PORT / SMTP_FROM。</td></tr>
+        <tr><td class="file">支付渠道密钥</td><td>微信/支付宝/虎皮椒等商户参数按后台「支付配置」或环境变量填写；未配置真实渠道时切勿开启沙箱以外的免支付。</td></tr>
+      </tbody>
+    </table>
+    <h3>上线后必做清单（后台 admin / admin123）</h3>
+    <ul class="dash">
+      <li>登录后<b>第一时间修改管理员默认密码</b>；核对站点名称、域名、ICP、客服联系方式。</li>
+      <li>新建商品分类 → 新建商品 → 录入/导入<b>真实可售卡密</b>（演示随机卡密已全部清除，不可出售）。</li>
+      <li>配置支付渠道并小额实测下单 → 支付 → 自动发卡 → 退款全链路。</li>
+      <li>配置 SMTP 并实测注册/找回密码验证码邮件送达。</li>
+      <li>按需重新配置轮播图、FAQ、热搜词、快捷导航、优惠券等运营内容。</li>
+    </ul>
+  </section>
+
+  <!-- 附录 -->
+  <section class="card">
+    <h2>附录：复测确认的非缺陷项与低优先级建议</h2>
+    <ul class="dash">
+      <li><b>验证码刷新：</b>图形验证码为 SVG data URI，点击图片即换图，复测正常，未复现「刷不出来」。</li>
+      <li><b>后台编辑/删除：</b>商品、分类、卡密、订单等编辑删除新增均真实落库正常（早前快捷入口的遍历问题已修复，全站已排查无 <code>$()</code> 当集合遍历的残留）。</li>
+      <li><b>建议项（不阻塞上线）：</b>① 首页快捷导航首次受站点信息会话缓存影响，硬刷新后正常，可后续改为进入后台时失效缓存；② 后台订单「买家」列对仅有邮箱、无昵称/手机的用户显示为空，可回退显示邮箱。</li>
+    </ul>
+  </section>
+
+  <footer>
+    发卡网系统 · 缺陷修复与上线交付报告 ｜ 生成于 2026-09-16 ｜ 提交 f41ece3 ｜ 回归 193 项全部通过 · 数据已清理 · 已推送并触发 Vercel 部署
+  </footer>
+
+</div>
+</body>
+</html>
