@@ -893,7 +893,7 @@ router.get('/users', auth.requireAdmin, (req, res) => {
   res.json(util.ok(util.paginate(list, page, size)));
 });
 
-router.put('/users/:id', auth.requireAdmin, (req, res) => {
+router.put('/users/:id', auth.requireAdmin, async (req, res) => {
   const { status, points, nickname } = req.body || {};
   const d = db.load();
   const u = d.users.find((x) => x.id === Number(req.params.id));
@@ -916,6 +916,7 @@ router.put('/users/:id', auth.requireAdmin, (req, res) => {
   }
   if (nickname !== undefined) u.nickname = nickname;
   db.save();
+  await db.flushNow(); // 禁用/改资料在 Serverless 下必须落库后再响应
   res.json(util.ok({ msg: '已保存' }));
 });
 
@@ -948,7 +949,7 @@ router.put('/users/:id/balance', auth.requireAdmin, async (req, res) => {
 });
 
 /** 管理员修改用户密码 */
-router.put('/users/:id/password', auth.requireAdmin, (req, res) => {
+router.put('/users/:id/password', auth.requireAdmin, async (req, res) => {
   const { password } = req.body || {};
   if (!password || String(password).length < 6) return res.json(util.fail('密码至少 6 位'));
   const d = db.load();
@@ -964,11 +965,12 @@ router.put('/users/:id/password', auth.requireAdmin, (req, res) => {
     isRead: 0, createdAt: util.now()
   });
   db.save();
+  await db.flushNow();
   res.json(util.ok({ msg: '密码已修改' }));
 });
 
 /** 删除用户 */
-router.delete('/users/:id', auth.requireAdmin, (req, res) => {
+router.delete('/users/:id', auth.requireAdmin, async (req, res) => {
   const d = db.load();
   const u = d.users.find((x) => x.id === Number(req.params.id));
   if (!u) return res.json(util.fail('用户不存在'));
@@ -1005,6 +1007,7 @@ router.delete('/users/:id', auth.requireAdmin, (req, res) => {
   d.orders.forEach((o) => { if (o.userId === u.id) o.userDeleted = true; });
   d.users = d.users.filter((x) => x.id !== u.id);
   db.save();
+  await db.flushNow(); // 删除用户必须落库后再响应，否则 Serverless 上"刷新还在"
   res.json(util.ok({ msg: '用户已删除' }));
 });
 

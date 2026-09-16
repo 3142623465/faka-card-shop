@@ -123,7 +123,7 @@ function load() {
   throw new Error('数据库未初始化，请先调用 db.init()');
 }
 
-/** 保存（防抖） */
+/** 保存（防抖；Mongo/Serverless 模式下立即发起写入，避免函数冻结丢数据） */
 function save(force) {
   if (!db) return;
   dirty = true;
@@ -132,6 +132,16 @@ function save(force) {
     flush();
     return;
   }
+  // Vercel 等 Serverless 环境：响应返回后函数实例很快被冻结/回收，
+  // 150ms 防抖 timer 经常来不及执行，导致"操作提示成功但数据没落库"。
+  // 因此 Mongo 模式下立即发起写入（在响应返回前就开始网络请求），
+  // 关键写操作仍应配合 await flushNow() 确保写入完成后再响应。
+  if (USE_MONGO) {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    flush();
+    return;
+  }
+  // 本地长驻进程模式：保留防抖，减少磁盘写入次数
   if (saveTimer) return;
   saveTimer = setTimeout(() => {
     saveTimer = null;

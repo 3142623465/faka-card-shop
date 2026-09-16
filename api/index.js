@@ -91,10 +91,20 @@ function createApp() {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
   });
 
-  // 错误兜底
+  // 错误兜底（与 server/server.js 对齐：解析错误回 400、支付回调回纯文本、不泄漏内部信息）
   application.use((err, req, res, next) => {
-    console.error('[server] 异常:', err.message);
-    res.status(500).json({ code: 1, msg: '服务器内部错误：' + err.message });
+    const status = err.status || err.statusCode ||
+      ((err.type && String(err.type).indexOf('entity.parse') === 0) ? 400 : 500);
+    // 支付渠道回调：body 解析失败也按渠道规范回 failure，不能回 500 JSON
+    if (/^\/api\/pay\/notify\//.test(req.path || '')) {
+      console.warn('[pay] 回调请求处理失败(' + status + '):', err.message);
+      return res.status(400).send('failure');
+    }
+    console.error('[server] 异常(' + status + '):', err.message);
+    res.status(status).json({
+      code: 1,
+      msg: status === 400 ? '请求格式错误' : '服务器内部错误'
+    });
   });
 
   return application;
