@@ -35,12 +35,17 @@ router.post('/login', (req, res) => {
   const d = db.load();
   const un = String(username).trim();
   let branch = d.branches.find((b) => b.username === un);
+  let matchedUser = null;
   if (!branch) {
     // 兼容：用注册账号（邮箱）登录分站后台
-    const u = d.users.find((x) => (x.email || '').toLowerCase() === un.toLowerCase() || x.phone === un);
-    if (u) branch = d.branches.find((b) => b.ownerId === u.id);
+    matchedUser = d.users.find((x) => (x.email || '').toLowerCase() === un.toLowerCase() || x.phone === un);
+    if (matchedUser) branch = d.branches.find((b) => b.ownerId === matchedUser.id);
   }
-  if (!branch || !util.verifyPassword(password, branch.passwordHash)) {
+  if (!branch) {
+    if (matchedUser && matchedUser.userDeleted) return res.json(util.fail('该账号已注销，无法登录'));
+    return res.json(util.fail('分站账号不存在，请先开通分站'));
+  }
+  if (!util.verifyPassword(password, branch.passwordHash)) {
     return res.json(util.fail('账号或密码错误'));
   }
   branchRate.delete(rk);

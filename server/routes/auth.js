@@ -113,9 +113,9 @@ router.post('/login', (req, res) => {
       return res.json(util.ok({ token, role: 'admin', isAdmin: true, username: s.adminUsername, siteName: s.siteName }));
     }
     if (!rateAllow(clientKey(req, pwdKey), 4, 60000)) return res.json(util.fail('操作频繁，请 60 秒后再试'));
-    return res.json(util.fail('账号或密码错误'));
+    return res.json(util.fail('该账号不存在，请先注册账号'));
   }
-  // 已自助注销的账号：明确提示，不再允许登录（密码已清空，邮箱保留用于识别）
+  // 已自助注销或被管理员删除的账号：明确提示，不再允许登录（密码已清空，邮箱保留用于识别）
   if (user.userDeleted) return res.json(util.fail('该账号已注销，无法登录'));
   if (!util.verifyPassword(password, user.passwordHash)) {
     if (!rateAllow(clientKey(req, pwdKey), 4, 60000)) return res.json(util.fail('操作频繁，请 60 秒后再试'));

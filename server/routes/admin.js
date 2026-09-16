@@ -71,7 +71,7 @@ router.get('/stats', auth.requireAdmin, (req, res) => {
     todaySales, todayOrders: today.length,
     totalSales: Math.round(totalSales * 100) / 100,
     totalOrders: d.orders.length,
-    totalUsers: d.users.filter((u) => !u.isThird || u.phone).length,
+    totalUsers: d.users.filter((u) => !u.userDeleted && (!u.isThird || u.phone)).length,
     totalProducts: d.products.filter((p) => p.status === 1).length,
     totalCards: autoCards,
     platformIncome: Math.round((d.settings.platformIncome || 0) * 100) / 100,
@@ -1005,7 +1005,16 @@ router.delete('/users/:id', auth.requireAdmin, async (req, res) => {
   d.aftersales = d.aftersales.filter((a) => a.userId !== u.id);
   // 保留历史订单但标记用户已删除
   d.orders.forEach((o) => { if (o.userId === u.id) o.userDeleted = true; });
-  d.users = d.users.filter((x) => x.id !== u.id);
+  // 软删除：保留账号记录与邮箱（登录时可明确提示"该账号已注销"），清空密码与敏感资料；
+  // 后台用户列表已过滤 userDeleted，效果等同删除，邮箱仍可被重新注册
+  u.userDeleted = 1;
+  u.status = 0;
+  u.deletedAt = util.now();
+  u.deletedBy = 'admin';
+  u.passwordHash = '';
+  u.phone = '';
+  u.nickname = '已注销用户' + u.id;
+  u.avatar = '/img/avatar.svg';
   db.save();
   await db.flushNow(); // 删除用户必须落库后再响应，否则 Serverless 上"刷新还在"
   res.json(util.ok({ msg: '用户已删除' }));
